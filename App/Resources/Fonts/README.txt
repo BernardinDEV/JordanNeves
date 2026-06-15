@@ -1,0 +1,1 @@
+Drop Montserrat .ttf files here (e.g. Montserrat-Regular.ttf, Montserrat-SemiBold.ttf, Montserrat-Bold.ttf or the variable Montserrat[wght].ttf from Google Fonts). They are registered automatically at launch.
