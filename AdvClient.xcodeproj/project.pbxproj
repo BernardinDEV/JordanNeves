@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		AA000000000000000000001A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA000000000000000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BBC566F9F1EF166EA60CD10C;
+			remoteInfo = Referencia;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		AA0000000000000000000004 /* JordanNeves.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JordanNeves.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000011 /* AdvClientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AdvClientTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -13,6 +23,9 @@
 		AA0000000000000000000021 /* Tests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Tests.xcconfig; sourceTree = "<group>"; };
 		AA0000000000000000000023 /* Brand.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Brand.xcconfig; sourceTree = "<group>"; };
 		AA0000000000000000000026 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BB990B20153F2FB23180EAEF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BBA861C79CB5482BDF7D2CC7 /* Brand.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Brand.xcconfig; sourceTree = "<group>"; };
+		BBEBD32033D505D5A511F642 /* Referencia.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Referencia.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -29,7 +42,13 @@
 		AA0000000000000000000024 /* JordanNeves */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			name = JordanNeves;
-			path = "Brands/JordanNeves/Resources";
+			path = Brands/JordanNeves/Resources;
+			sourceTree = "<group>";
+		};
+		BB2667E049CF07DC22150916 /* Referencia */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			name = Referencia;
+			path = Brands/Referencia/Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -49,6 +68,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB38CE8719524B3D3EB77F49 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -57,6 +83,7 @@
 			children = (
 				AA0000000000000000000001 /* AdvClient */,
 				AA0000000000000000000024 /* JordanNeves */,
+				BB2667E049CF07DC22150916 /* Referencia */,
 				AA0000000000000000000027 /* Brands */,
 				AA0000000000000000000025 /* Config */,
 				AA0000000000000000000010 /* AdvClientTests */,
@@ -68,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000000004 /* JordanNeves.app */,
+				BBEBD32033D505D5A511F642 /* Referencia.app */,
 				AA0000000000000000000011 /* AdvClientTests.xctest */,
 			);
 			name = Products;
@@ -85,6 +113,7 @@
 		AA0000000000000000000027 /* Brands */ = {
 			isa = PBXGroup;
 			children = (
+				BBE00C924E40A937B4AB5B2C /* Referencia */,
 				AA0000000000000000000028 /* JordanNeves */,
 			);
 			path = Brands;
@@ -97,6 +126,15 @@
 				AA0000000000000000000026 /* Info.plist */,
 			);
 			path = JordanNeves;
+			sourceTree = "<group>";
+		};
+		BBE00C924E40A937B4AB5B2C /* Referencia */ = {
+			isa = PBXGroup;
+			children = (
+				BBA861C79CB5482BDF7D2CC7 /* Brand.xcconfig */,
+				BB990B20153F2FB23180EAEF /* Info.plist */,
+			);
+			path = Referencia;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -147,25 +185,30 @@
 			productReference = AA0000000000000000000011 /* AdvClientTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		BBC566F9F1EF166EA60CD10C /* Referencia */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB71BE4250C2D59D1BD9DDD4 /* Build configuration list for PBXNativeTarget "Referencia" */;
+			buildPhases = (
+				BBF7BC5E3D9CBDA7E56CD29F /* Sources */,
+				BB38CE8719524B3D3EB77F49 /* Frameworks */,
+				BB56D8DA09CB3558C90AAD75 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA0000000000000000000001 /* AdvClient */,
+				BB2667E049CF07DC22150916 /* Referencia */,
+			);
+			name = Referencia;
+			packageProductDependencies = (
+			);
+			productName = Referencia;
+			productReference = BBEBD32033D505D5A511F642 /* Referencia.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
-
-/* Begin PBXTargetDependency section */
-		AA0000000000000000000019 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = AA0000000000000000000005 /* JordanNeves */;
-			targetProxy = AA000000000000000000001A /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
-/* Begin PBXContainerItemProxy section */
-		AA000000000000000000001A /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = AA000000000000000000000A /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = AA0000000000000000000005;
-			remoteInfo = JordanNeves;
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXProject section */
 		AA000000000000000000000A /* Project object */ = {
@@ -180,7 +223,10 @@
 					};
 					AA0000000000000000000012 = {
 						CreatedOnToolsVersion = 16.0;
-						TestTargetID = AA0000000000000000000005;
+						TestTargetID = BBC566F9F1EF166EA60CD10C;
+					};
+					BBC566F9F1EF166EA60CD10C = {
+						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
@@ -200,6 +246,7 @@
 			projectRoot = "";
 			targets = (
 				AA0000000000000000000005 /* JordanNeves */,
+				BBC566F9F1EF166EA60CD10C /* Referencia */,
 				AA0000000000000000000012 /* AdvClientTests */,
 			);
 		};
@@ -207,6 +254,13 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		AA0000000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB56D8DA09CB3558C90AAD75 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -230,7 +284,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BBF7BC5E3D9CBDA7E56CD29F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA0000000000000000000019 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BBC566F9F1EF166EA60CD10C /* Referencia */;
+			targetProxy = AA000000000000000000001A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA000000000000000000000C /* Debug */ = {
@@ -348,6 +417,15 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AA0000000000000000000023 /* Brand.xcconfig */;
 			buildSettings = {
+				INFOPLIST_KEY_CFBundleDisplayName = AdvCliente;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				PRODUCT_BUNDLE_IDENTIFIER = br.adv.advclient.JordanNeves;
 			};
 			name = Debug;
 		};
@@ -355,6 +433,15 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AA0000000000000000000023 /* Brand.xcconfig */;
 			buildSettings = {
+				INFOPLIST_KEY_CFBundleDisplayName = AdvCliente;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				PRODUCT_BUNDLE_IDENTIFIER = br.adv.advclient.JordanNeves;
 			};
 			name = Release;
 		};
@@ -371,6 +458,20 @@
 			buildSettings = {
 			};
 			name = Release;
+		};
+		BB1898F9676CD1D64710666A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = BBA861C79CB5482BDF7D2CC7 /* Brand.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		BBB83EB8D7EF40E36CBE9A4A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = BBA861C79CB5482BDF7D2CC7 /* Brand.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
@@ -398,6 +499,15 @@
 			buildConfigurations = (
 				AA0000000000000000000017 /* Debug */,
 				AA0000000000000000000018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB71BE4250C2D59D1BD9DDD4 /* Build configuration list for PBXNativeTarget "Referencia" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBB83EB8D7EF40E36CBE9A4A /* Debug */,
+				BB1898F9676CD1D64710666A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

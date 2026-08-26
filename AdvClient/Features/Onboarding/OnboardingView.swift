@@ -116,7 +116,7 @@ private struct WhatsAppArt: View {
         VStack(alignment: .trailing, spacing: 10) {
             Text("onb.art.waMessage")
                 .font(Theme.font(14))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.onBrand)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 11)
                 .background(Theme.primary, in: RoundedRectangle(cornerRadius: 15))

@@ -22,10 +22,15 @@ import hashlib
 import json
 import re
 import shutil
+import struct
 import sys
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Marca neutra que serve de molde e hospeda os testes.
+REFERENCE_BRAND = "Referencia"
 PBXPROJ = ROOT / "AdvClient.xcodeproj" / "project.pbxproj"
 SCHEMES = ROOT / "AdvClient.xcodeproj" / "xcshareddata" / "xcschemes"
 
@@ -43,7 +48,29 @@ PLACEHOLDER_COLORS = {
     "BrandBrass":      ("0.659", "0.506", "0.247"),
     "AccentColor":     ("0.204", "0.227", "0.275"),
 }
-IMAGESETS = ["LogoHorizontal", "LogoVertical"]
+# (nome, largura, altura) — blocos chapados, propositalmente sem graça: um
+# placeholder que parece um logotipo é um placeholder que vai para a loja.
+IMAGESETS = [("LogoHorizontal", 720, 160), ("LogoVertical", 480, 560)]
+
+PLACEHOLDER_INK = (150, 156, 168)
+APPICON_INK = (52, 58, 70)
+
+
+def write_png(path: Path, width: int, height: int, rgb: tuple[int, int, int]) -> None:
+    """PNG chapado, sem dependência externa — a VM que roda isto não tem Pillow."""
+    row = b"\x00" + bytes(rgb) * width
+    raw = row * height
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        body = tag + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw, 9))
+        + chunk(b"IEND", b"")
+    )
 
 
 def die(message: str) -> None:
@@ -95,18 +122,24 @@ def create_brand_folder(args, target: str) -> Path:
     for name, rgb in PLACEHOLDER_COLORS.items():
         write_color(assets / f"{name}.colorset", rgb)
 
-    for name in IMAGESETS:
+    for name, width, height in IMAGESETS:
         d = assets / f"{name}.imageset"
         d.mkdir()
+        filename = f"{name}.png"
+        write_png(d / filename, width, height, PLACEHOLDER_INK)
         (d / "Contents.json").write_text(json.dumps({
-            "images": [{"idiom": "universal", "scale": f"{s}x"} for s in (1, 2, 3)],
+            "images": [{"idiom": "universal", "filename": filename}],
             "info": {"author": "xcode", "version": 1},
         }, indent=2) + "\n")
 
+    # Um AppIcon de verdade, ainda que chapado: sem ele o build acusa ícone
+    # ausente a cada compilação, e aviso que aparece sempre deixa de ser lido.
     appicon = assets / "AppIcon.appiconset"
     appicon.mkdir()
+    write_png(appicon / "AppIcon1024.png", 1024, 1024, APPICON_INK)
     (appicon / "Contents.json").write_text(json.dumps({
-        "images": [{"idiom": "universal", "platform": "ios", "size": "1024x1024"}],
+        "images": [{"idiom": "universal", "platform": "ios", "size": "1024x1024",
+                    "filename": "AppIcon1024.png"}],
         "info": {"author": "xcode", "version": 1},
     }, indent=2) + "\n")
 
@@ -149,9 +182,31 @@ def create_brand_folder(args, target: str) -> Path:
         f"BRAND_ID = {args.id}\n"
         f"BRAND_DIR = Brands/{target}\n"
         f"BRAND_DISPLAY_NAME = {args.nome}\n"
-        f"BRAND_BUNDLE_ID = {args.bundle}\n")
+        f"BRAND_BUNDLE_ID = {args.bundle}\n"
+        f"BRAND_DEVELOPMENT_TEAM = {args.team or ''}\n")
 
-    shutil.copyfile(ROOT / "Brands" / "JordanNeves" / "Info.plist", brand / "Info.plist")
+    # InfoPlist.xcstrings é por bundle, não por produto: o Xcode extrai
+    # CFBundleDisplayName para dentro dele no primeiro build, com o nome deste
+    # escritório. Um arquivo compartilhado viraria briga entre marcas.
+    (resources / "InfoPlist.xcstrings").write_text(json.dumps({
+        "sourceLanguage": "pt-BR",
+        "version": "1.0",
+        "strings": {
+            "NSFaceIDUsageDescription": {
+                "extractionState": "manual",
+                "localizations": {
+                    "pt-BR": {"stringUnit": {"state": "translated",
+                        "value": "Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais."}},
+                    "en": {"stringUnit": {"state": "translated",
+                        "value": "Face ID protects access to your cases and personal data."}},
+                },
+            }
+        },
+    }, ensure_ascii=False, indent=2) + "\n")
+
+    # Molde é a marca de referência, nunca a de um cliente: assim apagar o
+    # escritório do repositório não inutiliza a criação de marcas novas.
+    shutil.copyfile(ROOT / "Brands" / REFERENCE_BRAND / "Info.plist", brand / "Info.plist")
     return brand
 
 
@@ -187,7 +242,14 @@ def patch_pbxproj(target: str, ids: dict[str, str]) -> None:
                          f'\t\t\t\t{ids["sync"]} /* {target} */,\n')
     text = insert_before(text, "\t\t\t\tAA0000000000000000000011 /* AdvClientTests.xctest */,",
                          f'\t\t\t\t{ids["product"]} /* {target}.app */,\n')
-    text = insert_before(text, "\t\t\t\tAA0000000000000000000028 /* JordanNeves */,",
+    # Ancorar no primeiro filho do grupo Brands, seja ele qual for — não num
+    # escritório específico, que pode sair do repositório.
+    first_child = re.search(
+        r'/\* Brands \*/ = \{\n\t\t\tisa = PBXGroup;\n\t\t\tchildren = \(\n(\t\t\t\t[^\n]+\n)',
+        text)
+    if not first_child:
+        die("não achei o grupo Brands no project.pbxproj")
+    text = insert_before(text, first_child.group(1),
                          f'\t\t\t\t{ids["group"]} /* {target} */,\n')
     text = insert_before(text, "/* End PBXGroup section */", (
         f'\t\t{ids["group"]} /* {target} */ = {{\n'
@@ -315,6 +377,7 @@ def main() -> None:
     parser.add_argument("--target", help="nome do target; derivado de --nome se omitido")
     parser.add_argument("--fonte", default="Montserrat", help="família da fonte da marca")
     parser.add_argument("--dominio", help="domínio do escritório, ex.: silva.adv.br")
+    parser.add_argument("--team", help="Apple Developer Team ID do escritório")
     args = parser.parse_args()
 
     if not PBXPROJ.exists():
@@ -339,7 +402,7 @@ def main() -> None:
     print("Falta você fazer, antes de qualquer build para a loja:")
     print(f"  1. Cores em {brand.relative_to(ROOT)}/Resources/Assets.xcassets/Brand*.colorset")
     print("     (estão em cinza neutro de propósito — nenhuma marca herda a cor de outra)")
-    print(f"  2. logo-horizontal / logo-vertical nos imagesets e o AppIcon de 1024px")
+    print(f"  2. Substituir os PNGs chapados: LogoHorizontal, LogoVertical e AppIcon1024")
     print(f"  3. Os campos DEFINIR em {brand.relative_to(ROOT)}/Resources/Brand.json")
     print(f"  4. Fontes .ttf em {brand.relative_to(ROOT)}/Resources/Fonts/")
     print(f"\nDepois: abra o Xcode, escolha o scheme {target} e rode.")

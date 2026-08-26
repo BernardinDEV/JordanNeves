@@ -4,7 +4,11 @@ App iOS (SwiftUI, iOS 17+, Xcode 16+) para **clientes pessoa jurídica** acompan
 contratos e prazos. Um escritório é uma pasta em `Brands/` mais um target — o código das telas não
 sabe qual marca está rodando.
 
-Hoje há uma marca no repositório: **Jordan Neves Advogados**.
+Há duas marcas no repositório:
+
+- **JordanNeves** — o escritório cliente.
+- **Referencia** — marca neutra, sem escritório real. É o molde que `scripts/nova-marca.py` copia
+  e o **host dos testes**: a suíte nunca depende do contrato visual de um cliente.
 
 ## Rodar
 
@@ -13,10 +17,10 @@ Hoje há uma marca no repositório: **Jordan Neves Advogados**.
 3. **Acesso de demonstração:** e-mail `financeiro@costalog.com.br`, código `492718`.
    Não há senha — o acesso é por código de 6 dígitos + Face ID.
 
-Testes: `⌘U`, ou
+Testes rodam no scheme **Referencia**, não no da marca:
 
 ```bash
-xcodebuild test -project AdvClient.xcodeproj -scheme JordanNeves \
+xcodebuild test -project AdvClient.xcodeproj -scheme Referencia \
   -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
 ```
 
@@ -32,13 +36,16 @@ AdvClient/            núcleo — não pode citar escritório nenhum
   Resources/          Localizable.xcstrings, InfoPlist.xcstrings
 
 Brands/
+  Referencia/         marca neutra: molde do script e host dos testes
   JordanNeves/
-    Brand.xcconfig    bundle id, nome do app, pasta da marca
+    Brand.xcconfig    bundle id, nome do app, pasta da marca, Team ID
     Info.plist        chaves de bundle da marca
     Resources/        sincronizado no target da marca:
       Brand.json      nome, contato, API, textos por idioma
       Assets.xcassets cores Brand*, logos, AccentColor, AppIcon
       Fonts/          .ttf da marca
+      InfoPlist.xcstrings  Face ID em pt-BR e en; o Xcode extrai
+                           CFBundleDisplayName para cá no primeiro build
 
 Config/
   App.xcconfig        comum a todo target de aplicativo
@@ -60,7 +67,8 @@ python3 scripts/nova-marca.py \
   --nome "Silva & Associados" \
   --razao "Silva & Associados Advogados" \
   --bundle br.adv.silvaassociados.app \
-  --dominio silvaassociados.adv.br
+  --dominio silvaassociados.adv.br \
+  --team ABCDE12345
 ```
 
 O script cria `Brands/SilvaAssociados/`, injeta o target e o scheme no projeto e para por aí.
@@ -91,7 +99,7 @@ grep -rn "NomeDoEscritorio" AdvClient Config AdvClientTests
 |---|---|
 | `Brand.json` | nome, razão social, contato, horário, tagline, fonte, URL da API |
 | `Assets.xcassets` da marca | `BrandPrimary`, `BrandSecondary`, `BrandMuted`, `BrandBody`, `BrandBackground`, `BrandCard`, `BrandOnBrand`, `BrandLine`, `BrandFill`, `BrandBrass`, `AccentColor`, logos, AppIcon |
-| `Brand.xcconfig` | bundle id, nome sob o ícone, pasta da marca |
+| `Brand.xcconfig` | bundle id, nome sob o ícone, pasta da marca, Apple Developer Team ID |
 | **Fica em código, de propósito** | verde/âmbar/vermelho de `Theme` e o verde do WhatsApp |
 
 As cores semânticas não são configuráveis porque verde significa "sem pendência" para qualquer
@@ -161,6 +169,36 @@ SIMCTL_CHILD_DEMO_ROUTE=contract xcrun simctl launch booted br.adv.jordanneves.a
 
 Rotas: `onboarding`, `signIn`, `home`, `notifications`, `cases`, `caseDetail`, `sealedCase`,
 `movement`, `hearing`, `documents`, `contract`, `upload`, `profile`.
+
+## Achados da revisão de 26/08/2026
+
+Confirmados por leitura, nenhum corrigido ainda — são de produto, não do white label:
+
+1. **`Rules.swift:229`** — `urgency(of:)` é aplicado à data do andamento mais recente, que é
+   sempre passada, então devolve `.critical` e a condição colapsa em `next.requiresClient`. Um
+   processo parado há meses aparece como "prazo próximo" e o ramo `.withCourt` fica inalcançável.
+2. **`SignInFlow.swift:27`** — `onVerified` roda depois de `appState.verify`, que já leva `phase`
+   a `.ready`; a `RootView` troca de tela antes. `BiometricOptInStep` nunca aparece.
+3. **`AuthService.swift:29`** — `secondsRemaining` diz medir o tempo até poder reenviar, mas mede
+   o tempo até expirar, e `codeLifetime` é 60 s. O link de reenvio só habilita quando o código já
+   morreu, e 60 s é curto demais para um código por e-mail.
+4. **`Formatters.swift:137,142,149`** — `date`, `weekdayDate` e `dateTime` têm `brazil` como locale
+   padrão e 17 chamadas não passam locale; `money` fixa pt-BR. Em inglês o app ainda mostra
+   `14/09/2026` e `R$ 84.200,00`.
+5. **40 `String(localized:)`** fora de `Formatters.swift` resolvem contra o idioma do **aparelho**,
+   não contra `Format.uiLocale`. `Format.string()` existe para isso e é ignorado nesses pontos.
+6. **`HearingSheet.swift:201`** — o `LOCATION` do `.ics` não escapa vírgula, que separa valores em
+   iCalendar; endereço com vírgula chega truncado.
+7. **`UploadSheet.swift:136`** — `dismiss()` direto após o envio viola a regra 5 (confirmação diz o
+   que vem a seguir). A audiência faz certo, o envio não.
+8. **`CompassRose` em `Components.swift:5`** — a rosa dos ventos do logotipo do Jordan Neves está
+   desenhada em código no núcleo e aparece na abertura, no login e no painel. Um segundo escritório
+   abre o app com a marca gráfica do primeiro. É o último vazamento estrutural de verdade.
+9. **Fonte declarada e ausente.** As duas marcas pedem Montserrat e nenhuma empacota `.ttf`;
+   `Theme.brandFontAvailable` é sempre falso e tudo cai na fonte do sistema.
+10. **Não há tela de contato.** As instruções do projeto pedem quatro telas — login, home, perfil e
+    contato — e o contato virou seis saídas para o WhatsApp espalhadas. `Brand.json` já traz
+    `email`, `website`, `address`, `city`, `instagram` e `linkedin`, e nenhuma tela os renderiza.
 
 ## Pendente
 

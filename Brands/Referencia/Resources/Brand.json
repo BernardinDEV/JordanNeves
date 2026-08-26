@@ -1,0 +1,30 @@
+{
+  "id": "referencia",
+  "displayName": "Referência",
+  "legalName": "Escritório de Referência",
+  "fontFamily": "Montserrat",
+  "tagline": {
+    "pt-BR": "Marca de referência · não é um escritório real",
+    "en": "Reference brand · not a real firm"
+  },
+  "contact": {
+    "phone": "+55 00 0000-0000",
+    "whatsapp": "+55 00 90000-0000",
+    "email": "contato@referencia.example",
+    "website": "https://referencia.example",
+    "instagram": null,
+    "linkedin": null,
+    "address": "Rua de Referência, 100",
+    "city": "Cidade — UF",
+    "businessHours": {
+      "pt-BR": "seg a sex, 9h–18h",
+      "en": "Mon–Fri, 9am–6pm"
+    }
+  },
+  "api": {
+    "baseURL": "https://api.referencia.example"
+  },
+  "store": {
+    "appStoreID": null
+  }
+}

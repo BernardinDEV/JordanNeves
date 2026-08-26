@@ -1,0 +1,12 @@
+// Marca: Escritório de Referência.
+//
+// Este arquivo e o Brand.json ao lado são tudo que um escritório novo
+// precisa escrever — o resto vem do núcleo.
+
+#include "../../Config/App.xcconfig"
+
+BRAND_ID = referencia
+BRAND_DIR = Brands/Referencia
+BRAND_DISPLAY_NAME = Referência
+BRAND_BUNDLE_ID = br.adv.advclient.referencia
+BRAND_DEVELOPMENT_TEAM = 64764VK866
