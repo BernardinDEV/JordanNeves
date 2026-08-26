@@ -1,122 +1,218 @@
 import SwiftUI
 
+/// Account, security and the firm. Fees sit here in plain sight: hiding what the
+/// client owes is what produces the awkward phone call.
 struct ProfileView: View {
     @Environment(AppState.self) private var appState
-    @State private var showLogoutConfirmation = false
+    @Environment(\.openURL) private var openURL
+    @State private var showSignOutConfirm = false
+    @State private var showDeleteInfo = false
 
     var body: some View {
-        @Bindable var appState = appState
-
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
-                    avatar
+                LazyVStack(spacing: 0) {
+                    Text("profile.title")
+                        .font(Theme.font(34, weight: .bold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .sideMargin()
+                        .padding(.top, 14)
+                        .padding(.bottom, 16)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("profile.section.personal")
-                            .font(Theme.font(13, weight: .semibold))
-                            .foregroundStyle(Theme.muted)
-                            .textCase(.uppercase)
-                        InfoRow(labelKey: "profile.name", value: appState.client?.name ?? "—")
-                        Divider()
-                        InfoRow(labelKey: "profile.cpf", value: appState.client?.cpf ?? "—")
-                        Divider()
-                        InfoRow(labelKey: "profile.email", value: appState.client?.email ?? "—")
-                        Divider()
-                        InfoRow(labelKey: "profile.phone", value: appState.client?.phone ?? "—")
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .card()
+                    companyCard
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("profile.section.preferences")
-                            .font(Theme.font(13, weight: .semibold))
-                            .foregroundStyle(Theme.muted)
-                            .textCase(.uppercase)
-
-                        Picker("profile.language", selection: $appState.language) {
-                            ForEach(AppLanguage.allCases) { lang in
-                                Text(lang.labelKey).tag(lang)
-                            }
+                    SectionHeader("profile.section.account")
+                    RowCard {
+                        AppListRow(
+                            title: String(localized: "profile.users"),
+                            subtitle: String(localized: "profile.users.count \(3)"),
+                            systemImage: "person.2"
+                        )
+                        RowDivider()
+                        AppListRow(
+                            title: String(localized: "profile.notifications"),
+                            subtitle: String(localized: "profile.notifications.value"),
+                            systemImage: "bell"
+                        )
+                        if appState.canUseBiometrics {
+                            RowDivider()
+                            biometricRow
                         }
-                        .pickerStyle(.segmented)
+                        RowDivider()
+                        languageRow
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .card()
+                    .sideMargin()
 
-                    if appState.canUseBiometrics {
-                        securitySection
+                    SectionHeader("profile.section.firm")
+                    RowCard {
+                        if let invoice = appState.nextInvoice {
+                            AppListRow(
+                                title: String(localized: "profile.fees"),
+                                subtitle: String(localized: "profile.fees.next \(Format.date(invoice.dueDate)) \(Format.money(invoice.amount))"),
+                                systemImage: "creditcard",
+                                isMonoSubtitle: true,
+                                showsChevron: false
+                            )
+                            RowDivider()
+                        }
+                        Button {
+                            if let url = appState.whatsAppURL(.general) { openURL(url) }
+                        } label: {
+                            AppListRow(
+                                title: String(localized: "profile.whatsapp"),
+                                subtitle: "\(BrandConfiguration.current.contact.phone) · \(String(localized: "profile.whatsapp.hours"))",
+                                systemImage: "bubble.left.and.text.bubble.right",
+                                iconTone: .onTrack,
+                                isMonoSubtitle: true
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .sideMargin()
 
-                    Button(role: .destructive) {
-                        showLogoutConfirmation = true
-                    } label: {
-                        Text("profile.logout")
-                            .font(Theme.font(16, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                    SectionHeader("profile.section.privacy")
+                    RowCard {
+                        Button { showDeleteInfo = true } label: {
+                            AppListRow(
+                                title: String(localized: "profile.deleteAccount"),
+                                subtitle: String(localized: "profile.deleteAccount.subtitle"),
+                                systemImage: "trash"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        RowDivider()
+                        Button { showSignOutConfirm = true } label: {
+                            AppListRow(
+                                title: String(localized: "profile.signOut"),
+                                systemImage: "rectangle.portrait.and.arrow.right",
+                                iconTone: .critical,
+                                showsChevron: false
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .background(.red.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .sideMargin()
+
+                    Text(verbatim: "\(BrandConfiguration.current.legalName) · v\(appVersion)")
+                        .font(Theme.font(11.5))
+                        .foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 26)
                 }
-                .padding(20)
+                .padding(.bottom, 28)
             }
             .background(Theme.background)
-            .navigationTitle("profile.title")
-            .confirmationDialog("profile.logout.confirm", isPresented: $showLogoutConfirmation, titleVisibility: .visible) {
-                Button("profile.logout", role: .destructive) { appState.logout() }
+            .toolbar(.hidden, for: .navigationBar)
+            .confirmationDialog(
+                Text("profile.signOut.confirm"),
+                isPresented: $showSignOutConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("profile.signOut", role: .destructive) { appState.signOut() }
                 Button("common.cancel", role: .cancel) {}
+            }
+            .alert(Text("profile.deleteAccount"), isPresented: $showDeleteInfo) {
+                Button("common.ok", role: .cancel) {}
+                Button("profile.deleteAccount.request") {
+                    if let url = appState.whatsAppURL(.general) { openURL(url) }
+                }
+            } message: {
+                // Accounts are created by the firm, so deletion is a request —
+                // and the app has to say plainly what the law obliges the firm to
+                // keep, rather than promising an erasure it cannot perform.
+                Text("profile.deleteAccount.explanation")
             }
         }
     }
 
-    private var securitySection: some View {
-        @Bindable var appState = appState
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("profile.section.security")
-                .font(Theme.font(13, weight: .semibold))
-                .foregroundStyle(Theme.muted)
-                .textCase(.uppercase)
+    private var companyCard: some View {
+        HStack(spacing: 14) {
+            Text(appState.company?.initials ?? "")
+                .font(Theme.font(17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(Theme.brass, in: Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(appState.company?.legalName ?? "")
+                    .font(Theme.font(16.5, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(Format.cnpj(appState.company?.cnpj ?? ""))
+                    .font(Theme.mono(12.5))
+                    .foregroundStyle(Theme.muted)
+                Text("profile.signedInAs \(appState.company?.userEmail ?? "")")
+                    .font(Theme.font(12))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .card()
+        .sideMargin()
+    }
+
+    private var biometricRow: some View {
+        HStack(spacing: 13) {
+            Image(systemName: "faceid")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 38, height: 38)
+                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 10))
 
             Toggle(isOn: Binding(
                 get: { appState.biometricEnabled },
                 set: { appState.setBiometricEnabled($0) }
             )) {
-                // Interpolated LocalizedStringKey so it resolves against the
-                // in-app language (environment locale), not the system one.
-                Text("profile.biometric \(appState.biometryName)")
-                    .font(Theme.font(15))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("profile.biometric \(appState.biometryName)")
+                        .font(Theme.font(15, weight: .medium))
+                        .foregroundStyle(Theme.primary)
+                    Text("profile.biometric.footer \(appState.biometryName)")
+                        .font(Theme.font(12.5))
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(Theme.primary)
+        }
+        .padding(.horizontal, 15)
+        .padding(.vertical, 12)
+    }
+
+    private var languageRow: some View {
+        HStack(spacing: 13) {
+            Image(systemName: "globe")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 38, height: 38)
+                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 10))
+
+            Picker(selection: Binding(
+                get: { appState.language },
+                set: { appState.language = $0 }
+            )) {
+                ForEach(AppLanguage.allCases) { language in
+                    Text(language.labelKey).tag(language)
+                }
+            } label: {
+                Text("profile.language")
+                    .font(Theme.font(15, weight: .medium))
                     .foregroundStyle(Theme.primary)
             }
             .tint(Theme.primary)
-
-            Text("profile.biometric.footer \(appState.biometryName)")
-                .font(Theme.font(12))
-                .foregroundStyle(Theme.muted)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .card()
+        .padding(.horizontal, 15)
+        .padding(.vertical, 6)
+        .frame(minHeight: Theme.minTouchTarget + 12)
     }
 
-    private var avatar: some View {
-        VStack(spacing: 10) {
-            Text(appState.client?.initials ?? "?")
-                .font(Theme.font(30, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 88, height: 88)
-                .background(Theme.primary)
-                .clipShape(Circle())
-            Text(appState.client?.name ?? "")
-                .font(Theme.font(18, weight: .semibold))
-                .foregroundStyle(Theme.primary)
-            Text("profile.clientSince")
-                .font(Theme.font(12))
-                .foregroundStyle(Theme.muted)
-        }
-        .padding(.top, 8)
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 }
 
 #Preview {
-    ProfileView().environment(AppState.loggedInPreview())
+    ProfileView().environment(AppState.signedInPreview())
 }

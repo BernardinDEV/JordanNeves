@@ -67,7 +67,7 @@ struct JordanNevesApp: App {
     /// before the (async) biometric prompt resolves so sensitive content never
     /// flashes underneath it.
     private func runSecurityChecks() {
-        if appState.isLoggedIn, appState.biometricEnabled, appState.canUseBiometrics {
+        if appState.isSignedIn, appState.biometricEnabled, appState.canUseBiometrics {
             isLocked = true
         }
         Task {
@@ -141,16 +141,41 @@ struct JordanNevesApp: App {
     }
 }
 
+/// Launch sequence: brand moment → three benefits → passwordless sign-in → app.
+/// Each step is skipped once it has been passed, so a returning client with a
+/// stored session goes straight to the dashboard.
 struct RootView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        if appState.isLoggedIn {
-            MainTabView()
-                .transition(.opacity)
-        } else {
-            LoginView()
-                .transition(.opacity)
+        Group {
+            #if DEBUG
+            if let route = DemoRoute.current {
+                DemoRouteView(route: route)
+            } else {
+                flow
+            }
+            #else
+            flow
+            #endif
+        }
+        .transition(.opacity)
+        .animation(.easeInOut(duration: 0.25), value: appState.phase)
+    }
+
+    @ViewBuilder
+    private var flow: some View {
+        Group {
+            switch appState.phase {
+            case .splash:
+                SplashView()
+            case .onboarding:
+                OnboardingView()
+            case .signIn:
+                SignInFlow()
+            case .ready:
+                MainTabView()
+            }
         }
     }
 }
