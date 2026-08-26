@@ -160,7 +160,7 @@ private struct ConfirmedView: View {
                 addToCalendar()
             } label: {
                 AppListRow(
-                    title: String(localized: "hearing.addToCalendar"),
+                    title: Format.string("hearing.addToCalendar"),
                     subtitle: Format.dateTime(hearing.date),
                     systemImage: "calendar",
                     isMonoSubtitle: true
@@ -197,7 +197,7 @@ private struct ConfirmedView: View {
         BEGIN:VEVENT
         DTSTART:\(stamp(start))
         DTEND:\(stamp(end))
-        SUMMARY:\(String(localized: "hearing.calendar.title")) — \(BrandConfiguration.current.legalName)
+        SUMMARY:\(Format.string("hearing.calendar.title")) — \(BrandConfiguration.current.legalName)
         LOCATION:\(hearing.venue) — \(hearing.address)
         END:VEVENT
         END:VCALENDAR

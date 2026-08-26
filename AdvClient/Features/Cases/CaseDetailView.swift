@@ -19,7 +19,7 @@ struct CaseDetailView: View {
             }
         }
         .background(Theme.background)
-        .navigationTitle(Text(legalCase.map { String(localized: .init($0.area.labelKey)) } ?? ""))
+        .navigationTitle(Text(legalCase.map { Format.string(.init($0.area.labelKey)) } ?? ""))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showHearingSheet) {
             if let legalCase, let hearing = legalCase.hearing {
@@ -67,7 +67,7 @@ struct CaseDetailView: View {
                     if let provision = legalCase.provision {
                         KeyValueRow(
                             label: "case.field.risk",
-                            value: "\(String(localized: .init(legalCase.risk.labelKey))) · \(String(localized: "case.field.provision \(Format.money(provision))"))",
+                            value: "\(Format.string(.init(legalCase.risk.labelKey))) · \(Format.string("case.field.provision \(Format.money(provision))"))",
                             tint: legalCase.risk == .high ? Theme.critical : Theme.attention
                         )
                     }

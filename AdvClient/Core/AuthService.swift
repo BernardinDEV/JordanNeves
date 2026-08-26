@@ -8,10 +8,10 @@ enum AuthError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .unknownEmail: String(localized: "login.error.unknownEmail")
-        case .invalidCode: String(localized: "login.error.invalidCode")
-        case .codeExpired: String(localized: "login.error.codeExpired")
-        case .malformedEmail: String(localized: "login.error.malformedEmail")
+        case .unknownEmail: Format.string("login.error.unknownEmail")
+        case .invalidCode: Format.string("login.error.invalidCode")
+        case .codeExpired: Format.string("login.error.codeExpired")
+        case .malformedEmail: Format.string("login.error.malformedEmail")
         }
     }
 }

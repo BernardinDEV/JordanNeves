@@ -51,7 +51,7 @@ struct NotificationsView: View {
                             } label: {
                                 AppListRow(
                                     title: item.movement.displayHeadline,
-                                    subtitle: "\(String(localized: .init(item.legalCase.area.labelKey))) · \(Format.date(item.movement.date)) · \(String(localized: "notifications.nothingToDo"))",
+                                    subtitle: "\(Format.string(.init(item.legalCase.area.labelKey))) · \(Format.date(item.movement.date)) · \(Format.string("notifications.nothingToDo"))",
                                     systemImage: "text.document",
                                     iconTone: appState.readMovementIDs.contains(item.movement.id) ? .neutral : .brass
                                 )

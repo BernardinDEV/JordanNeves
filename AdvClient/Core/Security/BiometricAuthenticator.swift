@@ -18,7 +18,7 @@ enum BiometricAuthenticator {
         case .faceID:  return "Face ID"
         case .touchID: return "Touch ID"
         case .opticID: return "Optic ID"
-        default:       return String(localized: "biometric.generic")
+        default:       return Format.string("biometric.generic")
         }
     }
 

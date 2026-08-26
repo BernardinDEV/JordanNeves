@@ -99,7 +99,7 @@ private struct TriageArt: View {
 
     private func miniCard(pill: String.LocalizationValue, tone: StatePill.Tone, title: LocalizedStringKey, dim: Bool) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            StatePill(String(localized: pill), tone: tone)
+            StatePill(Format.string(pill), tone: tone)
             Text(title)
                 .font(Theme.font(14, weight: .semibold))
                 .foregroundStyle(Theme.primary)

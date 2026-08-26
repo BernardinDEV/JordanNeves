@@ -121,32 +121,33 @@ enum Format {
         String(localized: key, bundle: bundle(for: locale), locale: locale)
     }
 
-    private static let currency: NumberFormatter = {
+    /// `R$ 84.200,00` em português, `R$84,200.00` em inglês.
+    ///
+    /// A moeda é sempre a do escritório — honorário em real continua em real
+    /// para um cliente lendo em inglês. O que segue o idioma é a escrita do
+    /// número: separador de milhar, decimal e posição do símbolo.
+    static func money(_ value: Decimal, locale: Locale = Format.uiLocale) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.locale = brazil
-        return formatter
-    }()
-
-    /// `R$ 84.200,00`
-    static func money(_ value: Decimal) -> String {
-        currency.string(from: value as NSDecimalNumber) ?? "—"
+        formatter.locale = locale
+        formatter.currencyCode = "BRL"
+        return formatter.string(from: value as NSDecimalNumber) ?? "—"
     }
 
     /// `14/09/2026`
-    static func date(_ date: Date, locale: Locale = brazil) -> String {
+    static func date(_ date: Date, locale: Locale = Format.uiLocale) -> String {
         date.formatted(.dateTime.day(.twoDigits).month(.twoDigits).year().locale(locale))
     }
 
     /// `Sexta, 27/07`
-    static func weekdayDate(_ date: Date, locale: Locale = brazil) -> String {
+    static func weekdayDate(_ date: Date, locale: Locale = Format.uiLocale) -> String {
         let weekday = date.formatted(.dateTime.weekday(.wide).locale(locale))
         return "\(weekday.prefix(1).uppercased())\(weekday.dropFirst()), " +
             date.formatted(.dateTime.day(.twoDigits).month(.twoDigits).locale(locale))
     }
 
     /// `27/07/2026 · 14h30`
-    static func dateTime(_ date: Date, locale: Locale = brazil) -> String {
+    static func dateTime(_ date: Date, locale: Locale = Format.uiLocale) -> String {
         let time = date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().locale(locale))
         return "\(self.date(date, locale: locale)) · \(time.replacingOccurrences(of: ":", with: "h"))"
     }

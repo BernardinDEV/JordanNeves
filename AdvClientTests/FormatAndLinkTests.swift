@@ -129,6 +129,21 @@ struct FormatTests {
         #expect(text.contains("84"))
         #expect(text.contains("R$"))
     }
+
+    @Test("Data e valor seguem o idioma pedido, não o do aparelho")
+    func formatsForTheChosenLanguage() {
+        // Locale explícito de propósito: `Format.uiLocale` é estado global e os
+        // testes rodam em paralelo — mexer nele daria intermitência.
+        let english = Locale(identifier: "en_US")
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = TimeZone(identifier: "America/Sao_Paulo")!
+        let deadline = gregorian.date(from: DateComponents(year: 2026, month: 9, day: 14, hour: 9))!
+
+        #expect(Format.date(deadline, locale: english) != Format.date(deadline, locale: Format.brazil))
+        // A moeda continua sendo a do escritório; só a escrita do número muda.
+        #expect(Format.money(84_200, locale: english).contains("R$"))
+        #expect(Format.money(84_200, locale: english) != Format.money(84_200, locale: Format.brazil))
+    }
 }
 
 // MARK: - WhatsApp

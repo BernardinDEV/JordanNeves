@@ -121,7 +121,7 @@ struct DocumentsView: View {
                     .multilineTextAlignment(.leading)
                 if let deadline = document.effectiveDeadline {
                     Text(document.autoRenews
-                         ? String(localized: "docs.noticeBy \(Format.deadline(deadline))")
+                         ? Format.string("docs.noticeBy \(Format.deadline(deadline))")
                          : Format.deadline(deadline))
                         .font(Theme.mono(12))
                         .foregroundStyle(Theme.muted)
@@ -129,7 +129,7 @@ struct DocumentsView: View {
             }
             Spacer(minLength: 8)
             StatePill(
-                String(localized: document.autoRenews ? "docs.action.decide" : "docs.action.renew"),
+                Format.string(document.autoRenews ? "docs.action.decide" : "docs.action.renew"),
                 tone: isUrgent ? .critical : .attention
             )
         }
@@ -149,9 +149,9 @@ struct DocumentsView: View {
         let pill: (String, StatePill.Tone)? = {
             guard document.kind == .contract else { return nil }
             switch alert {
-            case .urgent: return (String(localized: "docs.action.decide"), .critical)
-            case .decide: return (String(localized: "docs.action.renew"), .attention)
-            case .watch, nil: return (String(localized: "state.onTrack"), .onTrack)
+            case .urgent: return (Format.string("docs.action.decide"), .critical)
+            case .decide: return (Format.string("docs.action.renew"), .attention)
+            case .watch, nil: return (Format.string("state.onTrack"), .onTrack)
             }
         }()
         return AppListRow(
@@ -165,9 +165,9 @@ struct DocumentsView: View {
 
     private func subtitle(for document: ClientDocument) -> String {
         if let expiry = document.expiresAt {
-            return String(localized: "docs.validUntil \(Format.date(expiry))")
+            return Format.string("docs.validUntil \(Format.date(expiry))")
         }
-        return String(localized: "docs.uploadedOn \(Format.date(document.uploadedAt))")
+        return Format.string("docs.uploadedOn \(Format.date(document.uploadedAt))")
     }
 }
 

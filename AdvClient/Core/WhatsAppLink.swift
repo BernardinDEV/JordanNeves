@@ -18,7 +18,7 @@ enum WhatsAppLink {
 
         /// Body of the message, with the context already filled in. The client
         /// only has to type the question itself.
-        func message(companyName: String, locale: Locale = Format.brazil) -> String {
+        func message(companyName: String, locale: Locale = Format.uiLocale) -> String {
             let hello = Format.string("wa.greeting \(companyName)", locale: locale)
             switch self {
             case .general:

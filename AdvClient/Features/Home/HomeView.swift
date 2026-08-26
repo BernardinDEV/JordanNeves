@@ -188,13 +188,13 @@ struct HomeView: View {
 
                 FlowRow(spacing: 14, rowSpacing: 6) {
                     if position.requiresYou > 0 {
-                        legend(color: Theme.critical, text: String(localized: "home.legend.requiresYou \(position.requiresYou)"))
+                        legend(color: Theme.critical, text: Format.string("home.legend.requiresYou \(position.requiresYou)"))
                     }
                     if position.deadlineNear > 0 {
-                        legend(color: Theme.attention, text: String(localized: "home.legend.deadlineNear \(position.deadlineNear)"))
+                        legend(color: Theme.attention, text: Format.string("home.legend.deadlineNear \(position.deadlineNear)"))
                     }
                     if position.onTrack > 0 {
-                        legend(color: Theme.onTrack, text: String(localized: "home.legend.onTrack \(position.onTrack)"))
+                        legend(color: Theme.onTrack, text: Format.string("home.legend.onTrack \(position.onTrack)"))
                     }
                 }
                 .accessibilityHidden(true)
@@ -221,14 +221,14 @@ struct HomeView: View {
             title: document.title,
             subtitle: document.effectiveDeadline.map {
                 document.autoRenews
-                    ? String(localized: "docs.noticeBy \(Format.deadline($0))")
+                    ? Format.string("docs.noticeBy \(Format.deadline($0))")
                     : Format.deadline($0)
             },
             systemImage: "doc.text",
             iconTone: alert == .urgent ? .critical : .attention,
             isMonoSubtitle: true,
             trailingPill: (
-                text: String(localized: document.autoRenews ? "docs.action.decide" : "docs.action.renew"),
+                text: Format.string(document.autoRenews ? "docs.action.decide" : "docs.action.renew"),
                 tone: alert == .urgent ? .critical : .attention
             )
         )

@@ -18,7 +18,7 @@ struct ContractDetailView: View {
             }
         }
         .background(Theme.background)
-        .navigationTitle(Text(document.map { String(localized: .init($0.kind.labelKey)) } ?? ""))
+        .navigationTitle(Text(document.map { Format.string(.init($0.kind.labelKey)) } ?? ""))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -43,7 +43,7 @@ struct ContractDetailView: View {
                     }
                     StatePill("v\(document.version)", tone: .neutral)
                     if document.autoRenews {
-                        StatePill(String(localized: "docs.autoRenews"), tone: .brass)
+                        StatePill(Format.string("docs.autoRenews"), tone: .brass)
                     }
                 }
                 .padding(.top, 10)

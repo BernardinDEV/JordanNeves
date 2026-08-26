@@ -25,14 +25,14 @@ struct ProfileView: View {
                     SectionHeader("profile.section.account")
                     RowCard {
                         AppListRow(
-                            title: String(localized: "profile.users"),
-                            subtitle: String(localized: "profile.users.count \(3)"),
+                            title: Format.string("profile.users"),
+                            subtitle: Format.string("profile.users.count \(3)"),
                             systemImage: "person.2"
                         )
                         RowDivider()
                         AppListRow(
-                            title: String(localized: "profile.notifications"),
-                            subtitle: String(localized: "profile.notifications.value"),
+                            title: Format.string("profile.notifications"),
+                            subtitle: Format.string("profile.notifications.value"),
                             systemImage: "bell"
                         )
                         if appState.canUseBiometrics {
@@ -48,8 +48,8 @@ struct ProfileView: View {
                     RowCard {
                         if let invoice = appState.nextInvoice {
                             AppListRow(
-                                title: String(localized: "profile.fees"),
-                                subtitle: String(localized: "profile.fees.next \(Format.date(invoice.dueDate)) \(Format.money(invoice.amount))"),
+                                title: Format.string("profile.fees"),
+                                subtitle: Format.string("profile.fees.next \(Format.date(invoice.dueDate)) \(Format.money(invoice.amount))"),
                                 systemImage: "creditcard",
                                 isMonoSubtitle: true,
                                 showsChevron: false
@@ -60,7 +60,7 @@ struct ProfileView: View {
                             if let url = appState.whatsAppURL(.general) { openURL(url) }
                         } label: {
                             AppListRow(
-                                title: String(localized: "profile.whatsapp"),
+                                title: Format.string("profile.whatsapp"),
                                 subtitle: "\(BrandConfiguration.current.contact.phone) · \(BrandConfiguration.current.contact.businessHours.resolved())",
                                 systemImage: "bubble.left.and.text.bubble.right",
                                 iconTone: .onTrack,
@@ -75,8 +75,8 @@ struct ProfileView: View {
                     RowCard {
                         Button { showDeleteInfo = true } label: {
                             AppListRow(
-                                title: String(localized: "profile.deleteAccount"),
-                                subtitle: String(localized: "profile.deleteAccount.subtitle"),
+                                title: Format.string("profile.deleteAccount"),
+                                subtitle: Format.string("profile.deleteAccount.subtitle"),
                                 systemImage: "trash"
                             )
                         }
@@ -84,7 +84,7 @@ struct ProfileView: View {
                         RowDivider()
                         Button { showSignOutConfirm = true } label: {
                             AppListRow(
-                                title: String(localized: "profile.signOut"),
+                                title: Format.string("profile.signOut"),
                                 systemImage: "rectangle.portrait.and.arrow.right",
                                 iconTone: .critical,
                                 showsChevron: false

@@ -110,7 +110,7 @@ struct StatePill: View {
     }
 
     init(state: CaseState) {
-        self.text = String(localized: .init(state.labelKey))
+        self.text = Format.string(.init(state.labelKey))
         self.tone = switch state {
         case .requiresYou: .critical
         case .deadlineNear: .attention
@@ -190,7 +190,7 @@ struct CaseCard: View {
                 HStack(alignment: .center, spacing: 8) {
                     // verbatim: the pieces are already localised; treating the
                     // joined string as a key would expose "%@ · %@" to translators.
-                    Text(verbatim: "\(String(localized: .init(legalCase.area.labelKey))) · \(legalCase.courtShort)")
+                    Text(verbatim: "\(Format.string(.init(legalCase.area.labelKey))) · \(legalCase.courtShort)")
                         .font(Theme.font(10.5))
                         .kerning(1.2)
                         .textCase(.uppercase)
@@ -246,13 +246,13 @@ struct CaseCard: View {
 
     private var nextStepText: String? {
         if legalCase.isUnderSeal {
-            return String(localized: "case.underSeal.short")
+            return Format.string("case.underSeal.short")
         }
         if let hearing = legalCase.hearing, !hearing.isConfirmed {
             if let confirmBy = deadline, confirmBy < hearing.date {
-                return String(localized: "case.next.hearingConfirmBy \(Format.dateTime(hearing.date)) \(Format.date(confirmBy))")
+                return Format.string("case.next.hearingConfirmBy \(Format.dateTime(hearing.date)) \(Format.date(confirmBy))")
             }
-            return String(localized: "case.next.hearing \(Format.dateTime(hearing.date))")
+            return Format.string("case.next.hearing \(Format.dateTime(hearing.date))")
         }
         if let last = legalCase.visibleMovements.first {
             return last.displayHeadline
