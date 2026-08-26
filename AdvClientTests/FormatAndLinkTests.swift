@@ -363,3 +363,28 @@ struct RepositoryTests {
         }
     }
 }
+
+// MARK: - Contato
+
+@Suite("Tela de contato")
+struct ContactFormattingTests {
+
+    @Test("Telefone vira algo que o discador aceita")
+    func buildsDialableNumber() {
+        #expect(ContactView.dialable("+55 27 3442-8250") == "+552734428250")
+        #expect(ContactView.dialable("(27) 3442-8250") == "2734428250")
+    }
+
+    @Test("Site aparece sem o esquema")
+    func stripsScheme() {
+        #expect(ContactView.hostname("https://jordanneves.adv.br") == "jordanneves.adv.br")
+        // Sem URL válida, mostra o que veio em vez de sumir com o dado.
+        #expect(ContactView.hostname("jordanneves.adv.br") == "jordanneves.adv.br")
+    }
+
+    @Test("Perfil social vira arroba")
+    func buildsHandle() {
+        #expect(ContactView.handle("https://instagram.com/jordannevesadv") == "@jordannevesadv")
+        #expect(ContactView.handle("https://linkedin.com/company/jordan-neves-advogados") == "@jordan-neves-advogados")
+    }
+}

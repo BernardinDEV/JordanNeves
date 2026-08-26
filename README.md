@@ -170,35 +170,36 @@ SIMCTL_CHILD_DEMO_ROUTE=contract xcrun simctl launch booted br.adv.jordanneves.a
 Rotas: `onboarding`, `signIn`, `home`, `notifications`, `cases`, `caseDetail`, `sealedCase`,
 `movement`, `hearing`, `documents`, `contract`, `upload`, `profile`.
 
-## Achados da revisão de 26/08/2026
+## Revisão de 26/08/2026
 
-Confirmados por leitura, nenhum corrigido ainda — são de produto, não do white label:
+Quatro frentes: aderência ao protótipo, corretude do código, higiene do white label e escopo
+contra as instruções do projeto. Dez achados confirmados por leitura.
 
-1. **`Rules.swift:229`** — `urgency(of:)` é aplicado à data do andamento mais recente, que é
-   sempre passada, então devolve `.critical` e a condição colapsa em `next.requiresClient`. Um
-   processo parado há meses aparece como "prazo próximo" e o ramo `.withCourt` fica inalcançável.
-2. **`SignInFlow.swift:27`** — `onVerified` roda depois de `appState.verify`, que já leva `phase`
-   a `.ready`; a `RootView` troca de tela antes. `BiometricOptInStep` nunca aparece.
-3. **`AuthService.swift:29`** — `secondsRemaining` diz medir o tempo até poder reenviar, mas mede
-   o tempo até expirar, e `codeLifetime` é 60 s. O link de reenvio só habilita quando o código já
-   morreu, e 60 s é curto demais para um código por e-mail.
-4. **`Formatters.swift:137,142,149`** — `date`, `weekdayDate` e `dateTime` têm `brazil` como locale
-   padrão e 17 chamadas não passam locale; `money` fixa pt-BR. Em inglês o app ainda mostra
-   `14/09/2026` e `R$ 84.200,00`.
-5. **40 `String(localized:)`** fora de `Formatters.swift` resolvem contra o idioma do **aparelho**,
-   não contra `Format.uiLocale`. `Format.string()` existe para isso e é ignorado nesses pontos.
-6. **`HearingSheet.swift:201`** — o `LOCATION` do `.ics` não escapa vírgula, que separa valores em
-   iCalendar; endereço com vírgula chega truncado.
-7. **`UploadSheet.swift:136`** — `dismiss()` direto após o envio viola a regra 5 (confirmação diz o
-   que vem a seguir). A audiência faz certo, o envio não.
-8. **`CompassRose` em `Components.swift:5`** — a rosa dos ventos do logotipo do Jordan Neves está
-   desenhada em código no núcleo e aparece na abertura, no login e no painel. Um segundo escritório
-   abre o app com a marca gráfica do primeiro. É o último vazamento estrutural de verdade.
-9. **Fonte declarada e ausente.** As duas marcas pedem Montserrat e nenhuma empacota `.ttf`;
-   `Theme.brandFontAvailable` é sempre falso e tudo cai na fonte do sistema.
-10. **Não há tela de contato.** As instruções do projeto pedem quatro telas — login, home, perfil e
-    contato — e o contato virou seis saídas para o WhatsApp espalhadas. `Brand.json` já traz
-    `email`, `website`, `address`, `city`, `instagram` e `linkedin`, e nenhuma tela os renderiza.
+**Corrigidos**
+
+| # | Onde | O quê |
+|---|---|---|
+| 1 | `Rules.swift` | `urgency(of:)` era aplicada à data do andamento, sempre passada; devolvia `.critical` e a condição virava só `requiresClient`. Processo parado há meses aparecia como prazo próximo e `.withCourt` era inalcançável. Passou a olhar recência. |
+| 2 | `SignInFlow.swift` | `BiometricOptInStep` era inalcançável: `verify()` grava a empresa e a `RootView` troca a árvore antes. O convite mudou para a `MainTabView`. |
+| 3 | `AuthService.swift` | Expiração do código e cooldown de reenvio eram o mesmo relógio, de 60 s: o link só acendia com o código já morto. Agora 600 s e 45 s. |
+| 4 | `Formatters.swift` | `date`, `weekdayDate` e `dateTime` tinham `brazil` como padrão e `money` era fixo em pt-BR. Seguem `Format.uiLocale`; a moeda continua BRL. |
+| 5 | 11 arquivos | 42 `String(localized:)` resolviam contra o idioma do **aparelho**. Passaram por `Format.string`. |
+| 8 | `Components.swift` | `CompassRose` era o logotipo do Jordan Neves desenhado no núcleo. Virou o asset `BrandMark`, por marca. |
+| 10 | `Features/Contact/` | A tela de contato pedida nas instruções não existia. Existe, e renderiza os campos do `Brand.json` que nenhuma tela usava. |
+
+**Abertos**
+
+| # | Onde | O quê |
+|---|---|---|
+| 6 | `HearingSheet.swift:201` | O `LOCATION` do `.ics` não escapa vírgula, que separa valores em iCalendar; endereço com vírgula chega truncado. |
+| 7 | `UploadSheet.swift:136` | `dismiss()` direto após o envio viola a regra 5 — a confirmação não diz o que vem a seguir. A audiência faz certo. |
+| 9 | As duas marcas | Pedem Montserrat e nenhuma empacota `.ttf`; `Theme.brandFontAvailable` é sempre falso. |
+
+Também levantado e não tratado: não há estados de erro de rede nas quatro jornadas (`AppState`
+declara `loadFailed` e nenhuma tela o lê, e três ações engolem falhas com `try?`); a paleta escura
+já está desenhada no protótipo mas `AdvClientApp` trava `.preferredColorScheme(.light)`; o build
+declara iPad em `TARGETED_DEVICE_FAMILY` sem nenhuma adaptação de layout; `DeadlineLabel` foi criado
+para a regra 4 e nunca é usado; duas linhas do perfil desenham chevron sem serem tocáveis.
 
 ## Pendente
 

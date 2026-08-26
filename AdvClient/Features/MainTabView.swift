@@ -1,11 +1,13 @@
 import SwiftUI
 
 enum MainTab: Hashable {
-    case home, cases, documents, profile
+    case home, cases, documents, contact, profile
 }
 
-/// Four tabs. The conversation tab went out with the in-app channel — contact now
-/// lives as a WhatsApp exit on the screens where a question actually comes up.
+/// Cinco abas. O canal de conversa dentro do app continua fora de escopo: a aba
+/// Contato reúne os caminhos para falar com o escritório — WhatsApp, telefone,
+/// e-mail e endereço — e as saídas para o WhatsApp seguem existindo nas telas
+/// onde a dúvida realmente aparece, com o contexto do processo junto.
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @State private var selection: MainTab = .home
@@ -24,6 +26,10 @@ struct MainTabView: View {
             DocumentsView()
                 .tabItem { Label("tab.documents", systemImage: "folder") }
                 .tag(MainTab.documents)
+
+            ContactView()
+                .tabItem { Label("tab.contact", systemImage: "bubble.left.and.text.bubble.right") }
+                .tag(MainTab.contact)
 
             ProfileView()
                 .tabItem { Label("tab.profile", systemImage: "person") }
