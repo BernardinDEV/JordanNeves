@@ -1,0 +1,26 @@
+// Target de testes. Testa o núcleo AdvClient, não uma marca.
+//
+// O host é uma marca qualquer — os testes são de regras, formatação e
+// repositório, e não olham para cor, logo ou nome. Trocar de host é mudar
+// TEST_HOST_TARGET aqui e a dependência do target no projeto.
+
+TEST_HOST_TARGET = JordanNeves
+
+PRODUCT_NAME = $(TARGET_NAME)
+PRODUCT_BUNDLE_IDENTIFIER = br.adv.advclient.tests
+
+BUNDLE_LOADER = $(TEST_HOST)
+TEST_HOST = $(BUILT_PRODUCTS_DIR)/$(TEST_HOST_TARGET).app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/$(TEST_HOST_TARGET)
+
+SDKROOT = iphoneos
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+TARGETED_DEVICE_FAMILY = 1,2
+SWIFT_VERSION = 5.0
+
+MARKETING_VERSION = 1.0
+CURRENT_PROJECT_VERSION = 1
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = 64764VK866
+
+GENERATE_INFOPLIST_FILE = YES
+SWIFT_EMIT_LOC_STRINGS = NO

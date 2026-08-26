@@ -1,0 +1,12 @@
+// Marca: Jordan Neves Advogados.
+//
+// Este arquivo e o Brand.json ao lado são tudo que um escritório novo precisa
+// escrever — o resto vem do núcleo. Um valor de marca que você precisou colocar
+// fora desta pasta é um vazamento; conserte lá, não aqui.
+
+#include "../../Config/App.xcconfig"
+
+BRAND_ID = jordan-neves
+BRAND_DIR = Brands/JordanNeves
+BRAND_DISPLAY_NAME = Jordan Neves
+BRAND_BUNDLE_ID = br.adv.jordanneves.app

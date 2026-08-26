@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Texto sem o nome do escritório de propósito: o valor traduzido vem de
+	     AdvClient/Resources/InfoPlist.xcstrings, e catálogo de strings não
+	     expande variável de build. Vale para toda marca, nos dois idiomas. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSRequiresCertificateTransparency</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

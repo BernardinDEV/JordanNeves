@@ -1,0 +1,23 @@
+{
+  "sourceLanguage": "pt-BR",
+  "strings": {
+    "NSFaceIDUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face ID protects access to your cases and personal data."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
