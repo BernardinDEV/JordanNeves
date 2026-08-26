@@ -149,9 +149,8 @@ struct HomeView: View {
         let position = appState.position
         return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
-                CompassRose()
+                BrandMark()
                     .frame(width: 40, height: 40)
-                    .tint(Theme.primary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("home.position.title")
                         .font(Theme.font(15, weight: .semibold))

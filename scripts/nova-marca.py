@@ -56,21 +56,50 @@ PLACEHOLDER_INK = (150, 156, 168)
 APPICON_INK = (52, 58, 70)
 
 
-def write_png(path: Path, width: int, height: int, rgb: tuple[int, int, int]) -> None:
-    """PNG chapado, sem dependência externa — a VM que roda isto não tem Pillow."""
-    row = b"\x00" + bytes(rgb) * width
-    raw = row * height
-
+def _png(path: Path, width: int, height: int, raw: bytes, color_type: int) -> None:
     def chunk(tag: bytes, data: bytes) -> bytes:
         body = tag + data
         return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
 
     path.write_bytes(
         b"\x89PNG\r\n\x1a\n"
-        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, color_type, 0, 0, 0))
         + chunk(b"IDAT", zlib.compress(raw, 9))
         + chunk(b"IEND", b"")
     )
+
+
+def write_mark_png(path: Path, size: int = 512) -> None:
+    """Anel chapado, com alpha, para servir de marca da nova casa.
+
+    É deliberadamente um anel e não uma bússola: o desenho do logotipo é de um
+    escritório específico, e um placeholder que parece marca acaba na loja.
+    O app renderiza este arquivo como template, então só o alpha importa.
+    """
+    center = (size - 1) / 2
+    outer, inner, feather = size * 0.46, size * 0.34, 1.5
+    rows = bytearray()
+    for y in range(size):
+        rows.append(0)                      # filtro None por linha
+        for x in range(size):
+            d = ((x - center) ** 2 + (y - center) ** 2) ** 0.5
+            if d < inner - feather or d > outer + feather:
+                alpha = 0
+            else:
+                cover = 1.0
+                if d < inner + feather:
+                    cover = min(cover, (d - inner + feather) / (2 * feather))
+                if d > outer - feather:
+                    cover = min(cover, (outer + feather - d) / (2 * feather))
+                alpha = max(0, min(255, round(cover * 255)))
+            rows += bytes((0, 0, 0, alpha))
+    _png(path, size, size, bytes(rows), color_type=6)
+
+
+def write_png(path: Path, width: int, height: int, rgb: tuple[int, int, int]) -> None:
+    """PNG chapado, sem dependência externa — a VM que roda isto não tem Pillow."""
+    row = b"\x00" + bytes(rgb) * width
+    _png(path, width, height, row * height, color_type=2)
 
 
 def die(message: str) -> None:
@@ -131,6 +160,17 @@ def create_brand_folder(args, target: str) -> Path:
             "images": [{"idiom": "universal", "filename": filename}],
             "info": {"author": "xcode", "version": 1},
         }, indent=2) + "\n")
+
+    # A marca gráfica que aparece na abertura, no login e no painel. Ela era
+    # desenhada em código dentro do núcleo — com a bússola de um escritório só.
+    mark = assets / "BrandMark.imageset"
+    mark.mkdir()
+    write_mark_png(mark / "BrandMark.png")
+    (mark / "Contents.json").write_text(json.dumps({
+        "images": [{"idiom": "universal", "filename": "BrandMark.png"}],
+        "info": {"author": "xcode", "version": 1},
+        "properties": {"template-rendering-intent": "template"},
+    }, indent=2) + "\n")
 
     # Um AppIcon de verdade, ainda que chapado: sem ele o build acusa ícone
     # ausente a cada compilação, e aviso que aparece sempre deixa de ser lido.
@@ -402,7 +442,9 @@ def main() -> None:
     print("Falta você fazer, antes de qualquer build para a loja:")
     print(f"  1. Cores em {brand.relative_to(ROOT)}/Resources/Assets.xcassets/Brand*.colorset")
     print("     (estão em cinza neutro de propósito — nenhuma marca herda a cor de outra)")
-    print(f"  2. Substituir os PNGs chapados: LogoHorizontal, LogoVertical e AppIcon1024")
+    print(f"  2. Substituir os PNGs chapados: BrandMark (anel), LogoHorizontal,")
+    print(f"     LogoVertical e AppIcon1024. O BrandMark é renderizado como template,")
+    print(f"     então só o canal alpha importa — exporte com fundo transparente.")
     print(f"  3. Os campos DEFINIR em {brand.relative_to(ROOT)}/Resources/Brand.json")
     print(f"  4. Fontes .ttf em {brand.relative_to(ROOT)}/Resources/Fonts/")
     print(f"\nDepois: abra o Xcode, escolha o scheme {target} e rode.")

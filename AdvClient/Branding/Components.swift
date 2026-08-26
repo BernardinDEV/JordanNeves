@@ -2,76 +2,22 @@ import SwiftUI
 
 // MARK: - Brand mark
 
-/// The compass rose from the firm's logo, drawn as a shape so it scales cleanly
-/// and takes the current foreground colour. In this app it is not decoration: it
-/// marks the dashboard's "posição jurídica" — where the company stands.
-struct CompassRose: View {
-    var showsRing = true
+/// A marca gráfica do escritório, vinda do catálogo de assets da marca
+/// (`BrandMark`). Renderizada como template: só o alpha do arquivo importa, e a
+/// cor vem de quem a coloca na tela.
+///
+/// Aqui havia a bússola do Jordan Neves desenhada como `Shape` — o que fazia o
+/// segundo escritório abrir o app com o logotipo do primeiro. Neste app ela não
+/// é enfeite: marca a "posição jurídica" no painel, onde a empresa está.
+struct BrandMark: View {
+    var tint: Color = Theme.primary
 
     var body: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            let scale = side / 100
-            ZStack {
-                Star8()
-                    .fill(.tint)
-                if showsRing {
-                    CompassRing()
-                        .stroke(.tint, style: StrokeStyle(lineWidth: 6.5 * scale, lineCap: .round))
-                }
-            }
-            .frame(width: side, height: side)
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-}
-
-/// Eight-point star: long points at the cardinals, shorter ones between.
-private struct Star8: Shape {
-    func path(in rect: CGRect) -> Path {
-        let scale = min(rect.width, rect.height) / 100
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        var path = Path()
-        for index in 0..<16 {
-            let angle = Double(index) * .pi / 8 - .pi / 2
-            let radius: Double = index.isMultiple(of: 2)
-                ? (index.isMultiple(of: 4) ? 44 : 34)
-                : 7.5
-            let point = CGPoint(
-                x: center.x + radius * scale * cos(angle),
-                y: center.y + radius * scale * sin(angle)
-            )
-            index == 0 ? path.move(to: point) : path.addLine(to: point)
-        }
-        path.closeSubpath()
-        return path
-    }
-}
-
-/// Four arcs with cardinal ticks — the instrument bezel.
-private struct CompassRing: Shape {
-    func path(in rect: CGRect) -> Path {
-        let scale = min(rect.width, rect.height) / 100
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = 42.0 * scale
-        var path = Path()
-        for quadrant in 0..<4 {
-            let start = Double(quadrant) * 90 - 78
-            path.addArc(
-                center: center,
-                radius: radius,
-                startAngle: .degrees(start),
-                endAngle: .degrees(start + 56),
-                clockwise: false
-            )
-        }
-        for tick in 0..<4 {
-            let angle = Double(tick) * .pi / 2 - .pi / 2
-            let inner = 46.0 * scale, outer = 50.0 * scale
-            path.move(to: CGPoint(x: center.x + inner * cos(angle), y: center.y + inner * sin(angle)))
-            path.addLine(to: CGPoint(x: center.x + outer * cos(angle), y: center.y + outer * sin(angle)))
-        }
-        return path
+        Image("BrandMark")
+            .resizable()
+            .renderingMode(.template)
+            .aspectRatio(1, contentMode: .fit)
+            .foregroundStyle(tint)
     }
 }
 

@@ -53,9 +53,8 @@ private struct EmailStep: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                CompassRose()
+                BrandMark()
                     .frame(width: 48, height: 48)
-                    .tint(Theme.primary)
                     .padding(.top, 34)
 
                 Text("login.title")

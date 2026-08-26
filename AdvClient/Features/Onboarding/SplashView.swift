@@ -13,9 +13,8 @@ struct SplashView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                CompassRose()
+                BrandMark(tint: Theme.onBrand)
                     .frame(width: 88, height: 88)
-                    .tint(Theme.onBrand)
                     .scaleEffect(appeared ? 1 : 0.82)
                     .opacity(appeared ? 1 : 0)
 
