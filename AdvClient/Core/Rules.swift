@@ -210,6 +210,10 @@ enum Rules {
 
     // MARK: Case state
 
+    /// A partir daqui um andamento deixa de ser "o que está acontecendo agora".
+    /// É o mesmo corte dos dois lados: o que não é recente está com o tribunal.
+    static let staleAfterDays = 30
+
     /// Where a case stands. Order matters: an open pendency outranks everything,
     /// because it is the only state that asks the client to do something.
     static func state(
@@ -226,15 +230,20 @@ enum Rules {
             return .requiresYou
         }
 
+        // Recência, não urgência. `urgency(of:)` mede quanto falta para uma data
+        // futura; a data de um andamento é sempre passada, então ela devolvia
+        // `.critical` para qualquer caso e esta condição virava só
+        // `next.requiresClient` — deixando o ramo `.withCourt` inalcançável e
+        // marcando como "prazo próximo" processo parado há meses.
         if let next = legalCase.visibleMovements.first,
            next.requiresClient,
-           urgency(of: next.date, now: now, calendar: calendar) >= .warning {
+           days(from: next.date, to: now, calendar: calendar) <= staleAfterDays {
             return .deadlineNear
         }
 
         // No movement for a while and nothing pending: the ball is with the court.
         if let last = legalCase.visibleMovements.first,
-           days(from: last.date, to: now, calendar: calendar) > 30 {
+           days(from: last.date, to: now, calendar: calendar) > staleAfterDays {
             return .withCourt
         }
 

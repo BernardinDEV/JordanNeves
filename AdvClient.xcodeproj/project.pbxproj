@@ -417,15 +417,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AA0000000000000000000023 /* Brand.xcconfig */;
 			buildSettings = {
-				INFOPLIST_KEY_CFBundleDisplayName = AdvCliente;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
-				PRODUCT_BUNDLE_IDENTIFIER = br.adv.advclient.JordanNeves;
 			};
 			name = Debug;
 		};
@@ -433,15 +424,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AA0000000000000000000023 /* Brand.xcconfig */;
 			buildSettings = {
-				INFOPLIST_KEY_CFBundleDisplayName = AdvCliente;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
-				PRODUCT_BUNDLE_IDENTIFIER = br.adv.advclient.JordanNeves;
 			};
 			name = Release;
 		};

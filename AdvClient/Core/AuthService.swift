@@ -20,13 +20,26 @@ enum AuthError: LocalizedError, Equatable {
 struct CodeChallenge: Equatable, Sendable {
     let email: String
     let issuedAt: Date
+    /// When the code stops being accepted.
     let expiresAt: Date
+    /// When the client may ask for a new code. Deliberately **not** the same
+    /// clock as `expiresAt`: gating the resend link on expiry means the link
+    /// only appears once the code the client is holding is already dead.
+    let resendAllowedAt: Date
+
+    init(email: String, issuedAt: Date, expiresAt: Date, resendAllowedAt: Date? = nil) {
+        self.email = email
+        self.issuedAt = issuedAt
+        self.expiresAt = expiresAt
+        self.resendAllowedAt = resendAllowedAt ?? issuedAt
+    }
 
     func isExpired(now: Date = .now) -> Bool { now >= expiresAt }
 
-    /// Seconds left before the client may request a new code.
-    func secondsRemaining(now: Date = .now) -> Int {
-        max(0, Int(expiresAt.timeIntervalSince(now).rounded(.down)))
+    /// Seconds left before the client may request a new code. Zero means the
+    /// resend link is live.
+    func secondsUntilResend(now: Date = .now) -> Int {
+        max(0, Int(resendAllowedAt.timeIntervalSince(now).rounded(.up)))
     }
 }
 
@@ -46,7 +59,12 @@ struct MockAuthService: AuthService {
 
     /// Documented in the README and used by the App Store review account.
     static let demoCode = "492718"
-    static let codeLifetime: TimeInterval = 60
+    /// Ten minutes. A code by e-mail has to survive the client opening the
+    /// mail app, finding the message and typing six digits — a minute doesn't.
+    static let codeLifetime: TimeInterval = 600
+    /// Long enough to stop a client from hammering the button while the first
+    /// e-mail is still in flight, short enough to rescue one that never arrives.
+    static let resendCooldown: TimeInterval = 45
 
     /// E-mails the firm has invited. A real backend answers the same way for
     /// unknown addresses to avoid leaking who is a client, but in the demo the
@@ -70,7 +88,12 @@ struct MockAuthService: AuthService {
         guard Self.isPlausibleEmail(normalized) else { throw AuthError.malformedEmail }
         guard Self.invitedEmails.contains(normalized) else { throw AuthError.unknownEmail }
         let now = Date.now
-        return CodeChallenge(email: normalized, issuedAt: now, expiresAt: now.addingTimeInterval(Self.codeLifetime))
+        return CodeChallenge(
+            email: normalized,
+            issuedAt: now,
+            expiresAt: now.addingTimeInterval(Self.codeLifetime),
+            resendAllowedAt: now.addingTimeInterval(Self.resendCooldown)
+        )
     }
 
     func verify(code: String, challenge: CodeChallenge) async throws -> Company {

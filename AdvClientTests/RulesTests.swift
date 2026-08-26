@@ -360,6 +360,31 @@ struct CaseStateTests {
         #expect(Rules.state(of: subject, pendencies: [], now: now, calendar: calendar) == .onTrack)
     }
 
+    @Test("Movimento recente que exige o cliente é prazo próximo")
+    func recentMovementRequiringClientIsDeadlineNear() {
+        let subject = legalCase(movements: [movement(date: date(2026, 7, 18), requiresClient: true)])
+        #expect(Rules.state(of: subject, pendencies: [], now: now, calendar: calendar) == .deadlineNear)
+    }
+
+    @Test("Movimento antigo que exigia o cliente não fica eternamente como prazo próximo")
+    func staleMovementRequiringClientIsWithCourt() {
+        // Regressão: `urgency(of:)` era aplicada à data do andamento, que é
+        // sempre passada, então devolvia `.critical` e este caso aparecia como
+        // "prazo próximo" indefinidamente — e `.withCourt` nunca acontecia.
+        let subject = legalCase(movements: [movement(date: date(2026, 5, 1), requiresClient: true)])
+        #expect(Rules.state(of: subject, pendencies: [], now: now, calendar: calendar) == .withCourt)
+    }
+
+    @Test("O corte de recência é o mesmo dos dois lados")
+    func staleThresholdIsSymmetric() {
+        let onTheEdge = calendar.date(byAdding: .day, value: -Rules.staleAfterDays, to: now)!
+        let justPast = calendar.date(byAdding: .day, value: -(Rules.staleAfterDays + 1), to: now)!
+        let edgeCase = legalCase(movements: [movement(date: onTheEdge, requiresClient: true)])
+        let pastCase = legalCase(movements: [movement(date: justPast, requiresClient: true)])
+        #expect(Rules.state(of: edgeCase, pendencies: [], now: now, calendar: calendar) == .deadlineNear)
+        #expect(Rules.state(of: pastCase, pendencies: [], now: now, calendar: calendar) == .withCourt)
+    }
+
     @Test("Casos que exigem o cliente vêm do prazo mais próximo para o mais distante")
     func requiringCasesSortedByDeadline() {
         let far = legalCase(hearing: hearing(on: calendar.date(byAdding: .day, value: 6, to: now)!))

@@ -213,7 +213,26 @@ struct AuthTests {
         let challenge = try await service.requestCode(email: "financeiro@costalog.com.br")
         #expect(challenge.email == "financeiro@costalog.com.br")
         #expect(!challenge.isExpired())
-        #expect(challenge.secondsRemaining() > 0)
+        #expect(challenge.secondsUntilResend() > 0)
+    }
+
+    @Test("Expiração do código e cooldown de reenvio são relógios diferentes")
+    func resendIsNotGatedOnExpiry() async throws {
+        let challenge = try await service.requestCode(email: "financeiro@costalog.com.br")
+        // O reenvio libera muito antes de o código morrer — o contrário deixava
+        // o cliente sem código válido e sem botão para pedir outro.
+        #expect(challenge.resendAllowedAt < challenge.expiresAt)
+        #expect(MockAuthService.resendCooldown < MockAuthService.codeLifetime)
+
+        let justAfterCooldown = challenge.resendAllowedAt.addingTimeInterval(1)
+        #expect(challenge.secondsUntilResend(now: justAfterCooldown) == 0)
+        #expect(!challenge.isExpired(now: justAfterCooldown))
+    }
+
+    @Test("Código sobrevive ao tempo de abrir o e-mail e digitar")
+    func codeOutlivesTheEmailRoundTrip() async throws {
+        let challenge = try await service.requestCode(email: "financeiro@costalog.com.br")
+        #expect(!challenge.isExpired(now: challenge.issuedAt.addingTimeInterval(300)))
     }
 
     @Test("Normaliza caixa e espaços do e-mail")

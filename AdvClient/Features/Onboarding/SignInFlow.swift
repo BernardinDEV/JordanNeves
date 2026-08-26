@@ -9,7 +9,7 @@ struct SignInFlow: View {
     @State private var email = ""
     @State private var challenge: CodeChallenge?
 
-    private enum Step: Equatable { case email, code, biometrics }
+    private enum Step: Equatable { case email, code }
 
     var body: some View {
         NavigationStack {
@@ -24,16 +24,10 @@ struct SignInFlow: View {
                     if let challenge {
                         CodeStep(challenge: challenge) {
                             withAnimation { step = .email }
-                        } onVerified: {
-                            if appState.canUseBiometrics && !appState.didAskBiometrics {
-                                withAnimation { step = .biometrics }
-                            }
                         } onResend: { reissued in
                             self.challenge = reissued
                         }
                     }
-                case .biometrics:
-                    BiometricOptInStep()
                 }
             }
             .background(Theme.background.ignoresSafeArea())
@@ -147,7 +141,6 @@ private struct CodeStep: View {
     @Environment(AppState.self) private var appState
     let challenge: CodeChallenge
     let onBack: () -> Void
-    let onVerified: () -> Void
     let onResend: (CodeChallenge) -> Void
 
     @State private var code = ""
@@ -260,11 +253,11 @@ private struct CodeStep: View {
         }
         .onAppear {
             focused = true
-            secondsLeft = challenge.secondsRemaining()
+            secondsLeft = challenge.secondsUntilResend()
         }
-        .task(id: challenge.expiresAt) {
+        .task(id: challenge.resendAllowedAt) {
             while !Task.isCancelled {
-                secondsLeft = challenge.secondsRemaining()
+                secondsLeft = challenge.secondsUntilResend()
                 if secondsLeft == 0 { break }
                 try? await Task.sleep(for: .seconds(1))
             }
@@ -290,9 +283,11 @@ private struct CodeStep: View {
         isVerifying = true
         Task {
             do {
+                // Nada a fazer depois daqui: `verify` grava a empresa, o que
+                // leva `phase` a `.ready` e troca a árvore de views. O convite
+                // ao Face ID vive na MainTabView, já do outro lado da troca.
                 try await appState.verify(code: code, challenge: challenge)
                 isVerifying = false
-                onVerified()
             } catch {
                 isVerifying = false
                 code = ""
@@ -305,7 +300,7 @@ private struct CodeStep: View {
         Task {
             if let reissued = try? await appState.requestCode(email: challenge.email) {
                 onResend(reissued)
-                secondsLeft = reissued.secondsRemaining()
+                secondsLeft = reissued.secondsUntilResend()
             }
         }
     }
@@ -316,7 +311,10 @@ private struct CodeStep: View {
 /// Asked *after* the first successful sign-in, with the reason next to it.
 /// Asking before is the classic mistake: the user declines and never finds the
 /// setting again.
-private struct BiometricOptInStep: View {
+///
+/// Apresentada pela `MainTabView`, não por este fluxo: quando o código é aceito
+/// a sessão já existe, e esta árvore de views deixou de estar na tela.
+struct BiometricOptInStep: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {

@@ -9,6 +9,7 @@ enum MainTab: Hashable {
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @State private var selection: MainTab = .home
+    @State private var askBiometrics = false
 
     var body: some View {
         TabView(selection: $selection) {
@@ -29,7 +30,19 @@ struct MainTabView: View {
                 .tag(MainTab.profile)
         }
         .tint(Theme.primary)
-        .task { await appState.refresh() }
+        .task {
+            await appState.refresh()
+            // O convite ao Face ID mora aqui, e não no fim do login: assim que o
+            // código é aceito a sessão existe e a árvore do login sai da tela,
+            // então um passo a mais lá dentro nunca chegaria a aparecer.
+            askBiometrics = appState.canUseBiometrics && !appState.didAskBiometrics
+        }
+        .onChange(of: appState.didAskBiometrics) { _, asked in
+            if asked { askBiometrics = false }
+        }
+        .fullScreenCover(isPresented: $askBiometrics) {
+            BiometricOptInStep()
+        }
     }
 }
 
