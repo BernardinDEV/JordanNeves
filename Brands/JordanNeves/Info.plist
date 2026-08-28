@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Sem esta chave o iOS ENCERRA o app na primeira chamada a
+	     evaluatePolicy — canEvaluatePolicy não avisa. O texto sai sem o nome do
+	     escritório de propósito: o valor traduzido vem do InfoPlist.xcstrings
+	     ao lado, e catálogo de strings traduz chave existente, não a cria. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Usamos o Face ID para proteger o acesso aos seus processos e dados pessoais.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
