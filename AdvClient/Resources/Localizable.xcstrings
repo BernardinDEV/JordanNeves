@@ -2,7 +2,6 @@
   "sourceLanguage": "pt-BR",
   "strings": {
     "": {},
-    "%lld": {},
     "biometric.generic": {
       "extractionState": "manual",
       "localizations": {
@@ -33,6 +32,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dados de processos e contratos da sua empresa ficam protegidos pelo bloqueio do aparelho."
+          }
+        }
+      }
+    },
+    "biometric.optIn.body.personal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your case and contract data stay protected by the device lock."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os dados dos seus processos e contratos ficam protegidos pelo bloqueio do aparelho."
           }
         }
       }
@@ -190,6 +206,23 @@
         }
       }
     },
+    "case.area.family": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Family & estates"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Família e sucessões"
+          }
+        }
+      }
+    },
     "case.area.labor": {
       "extractionState": "manual",
       "localizations": {
@@ -207,6 +240,23 @@
         }
       }
     },
+    "case.area.other": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outros"
+          }
+        }
+      }
+    },
     "case.area.tax": {
       "extractionState": "manual",
       "localizations": {
@@ -220,6 +270,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tributário"
+          }
+        }
+      }
+    },
+    "case.courtActivity.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The court's text appears here once the firm explains it in plain language."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O texto do tribunal aparece aqui depois que o escritório o explicar em linguagem simples."
+          }
+        }
+      }
+    },
+    "case.courtActivity.source %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fonte: %@"
+          }
+        }
+      }
+    },
+    "case.courtActivity.title %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latest court activity: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Última movimentação no tribunal: %@"
+          }
+        }
+      }
+    },
+    "case.field.class": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Case type"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classe"
           }
         }
       }
@@ -309,6 +427,23 @@
         }
       }
     },
+    "case.field.role": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your role"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua posição"
+          }
+        }
+      }
+    },
     "case.field.value": {
       "extractionState": "manual",
       "localizations": {
@@ -339,6 +474,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Presença confirmada"
+          }
+        }
+      }
+    },
+    "case.next.courtActivity %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Court activity on %@ · explanation not published yet"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Movimentação no tribunal em %@ · explicação ainda não publicada"
           }
         }
       }
@@ -955,6 +1107,23 @@
         }
       }
     },
+    "common.done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluir"
+          }
+        }
+      }
+    },
     "common.ok": {
       "extractionState": "manual",
       "localizations": {
@@ -985,6 +1154,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ver todos"
+          }
+        }
+      }
+    },
+    "common.tryAgain": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tentar de novo"
           }
         }
       }
@@ -1516,6 +1702,23 @@
         }
       }
     },
+    "docs.kind.personal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personal"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pessoais"
+          }
+        }
+      }
+    },
     "docs.kind.procedural": {
       "extractionState": "manual",
       "localizations": {
@@ -1737,6 +1940,23 @@
         }
       }
     },
+    "error.action.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't complete this"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível concluir"
+          }
+        }
+      }
+    },
     "hearing.action.cannotAttend": {
       "extractionState": "manual",
       "localizations": {
@@ -1941,6 +2161,23 @@
         }
       }
     },
+    "hearing.who.personal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who needs to attend"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quem precisa ir"
+          }
+        }
+      }
+    },
     "home.empty.cases.message": {
       "extractionState": "manual",
       "localizations": {
@@ -1954,6 +2191,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quando o escritório abrir um processo para a sua empresa, ele aparece aqui."
+          }
+        }
+      }
+    },
+    "home.empty.cases.message.personal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When the firm opens a case for you, it shows up here."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quando o escritório abrir um processo para você, ele aparece aqui."
           }
         }
       }
@@ -2090,6 +2344,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld casos ativos · %lld contratos"
+          }
+        }
+      }
+    },
+    "home.position.summaryCases %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld active cases"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld casos ativos"
           }
         }
       }
@@ -2434,6 +2705,23 @@
         }
       }
     },
+    "movement.meaning.label.personal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What this means for you"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que isso significa para você"
+          }
+        }
+      }
+    },
     "movement.officialText.toggle %@": {
       "extractionState": "manual",
       "localizations": {
@@ -2532,6 +2820,227 @@
           "stringUnit": {
             "state": "translated",
             "value": "Andamento indisponível"
+          }
+        }
+      }
+    },
+    "network.error.conflict": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This item changed while you were on this screen. Refresh and try again."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este item mudou enquanto você estava nesta tela. Atualize e tente de novo."
+          }
+        }
+      }
+    },
+    "network.error.forbidden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This content isn't available for your access. Talk to the firm."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este conteúdo não está liberado para o seu acesso. Fale com o escritório."
+          }
+        }
+      }
+    },
+    "network.error.generic": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't load this right now. Try again."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível carregar agora. Tente de novo."
+          }
+        }
+      }
+    },
+    "network.error.insecureEnvironment": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This device isn't in a safe state to open your company's data. Access has been blocked."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este aparelho não está em condições seguras para abrir os dados da sua empresa. O acesso foi bloqueado."
+          }
+        }
+      }
+    },
+    "network.error.insecureTransport": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The connection's security couldn't be verified. Access has been blocked."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível verificar a segurança da conexão. O acesso foi bloqueado."
+          }
+        }
+      }
+    },
+    "network.error.invalidData": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't complete this with the information sent. Check it and try again."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível concluir com os dados enviados. Confira e tente de novo."
+          }
+        }
+      }
+    },
+    "network.error.notFound": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't find this item. It may have been moved or archived."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não encontramos este item. Ele pode ter sido movido ou arquivado."
+          }
+        }
+      }
+    },
+    "network.error.offline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No connection. What you see here is what we saved last time."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem conexão. O que aparece aqui é o que guardamos da última vez."
+          }
+        }
+      }
+    },
+    "network.error.rateLimited": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts in a row. Wait a moment and try again."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muitas tentativas seguidas. Aguarde um instante e tente de novo."
+          }
+        }
+      }
+    },
+    "network.error.server": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The service is unavailable right now. Try again in a few minutes."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O serviço está indisponível agora. Tente de novo em alguns minutos."
+          }
+        }
+      }
+    },
+    "network.error.timedOut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The service took too long to answer. Try again."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O serviço demorou a responder. Tente de novo."
+          }
+        }
+      }
+    },
+    "network.error.unauthorized": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your session has expired. Sign in again to continue."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua sessão expirou. Entre novamente para continuar."
+          }
+        }
+      }
+    },
+    "network.stale.updatedAt %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline · data from %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem conexão · dados de %@"
           }
         }
       }
@@ -2906,6 +3415,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Acessar minha conta"
+          }
+        }
+      }
+    },
+    "onb.page.a11y %lld %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %1$lld of %2$lld"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Página %1$lld de %2$lld"
           }
         }
       }
@@ -3352,6 +3878,23 @@
         }
       }
     },
+    "sync.failed.showingDataFrom %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't refresh right now. You're seeing data from %@."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível atualizar agora. Você está vendo os dados de %@."
+          }
+        }
+      }
+    },
     "tab.cases": {
       "extractionState": "manual",
       "localizations": {
@@ -3505,6 +4048,40 @@
         }
       }
     },
+    "upload.error.tooLarge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is over 25 MB. Send it through WhatsApp or split it into parts."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O arquivo passa de 25 MB. Envie pelo WhatsApp ou divida em partes."
+          }
+        }
+      }
+    },
+    "upload.error.unreadable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file couldn't be opened. Choose another one or try again."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível abrir este arquivo. Escolha outro ou tente de novo."
+          }
+        }
+      }
+    },
     "upload.forCase": {
       "extractionState": "manual",
       "localizations": {
@@ -3535,6 +4112,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nenhum caso específico"
+          }
+        }
+      }
+    },
+    "upload.sent.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The firm has been notified. The file now appears under Documents, with the date it was sent."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O escritório foi avisado. O arquivo já aparece em Documentos, com a data de envio."
+          }
+        }
+      }
+    },
+    "upload.sent.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File sent"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arquivo enviado"
           }
         }
       }
@@ -3671,6 +4282,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Olá! Sou da %@."
+          }
+        }
+      }
+    },
+    "wa.greeting.personal %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello! This is %@."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Olá! Aqui é %@."
           }
         }
       }

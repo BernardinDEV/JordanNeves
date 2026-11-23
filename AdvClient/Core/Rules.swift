@@ -242,8 +242,11 @@ enum Rules {
         }
 
         // No movement for a while and nothing pending: the ball is with the court.
-        if let last = legalCase.visibleMovements.first,
-           days(from: last.date, to: now, calendar: calendar) > staleAfterDays {
+        // Sem andamento publicado, vale a data da última movimentação no
+        // tribunal, quando a fonte a informa.
+        let lastActivity = legalCase.visibleMovements.first?.date ?? legalCase.lastCourtActivity?.date
+        if let lastActivity,
+           days(from: lastActivity, to: now, calendar: calendar) > staleAfterDays {
             return .withCourt
         }
 

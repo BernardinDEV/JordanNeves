@@ -4,6 +4,7 @@ import SwiftUI
 /// app is already a client of the firm.
 struct SplashView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
 
     var body: some View {
@@ -15,7 +16,8 @@ struct SplashView: View {
 
                 BrandMark(tint: Theme.onBrand)
                     .frame(width: 88, height: 88)
-                    .scaleEffect(appeared ? 1 : 0.82)
+                    // Com "Reduzir movimento" ligado a marca só surge, sem crescer.
+                    .scaleEffect(appeared || reduceMotion ? 1 : 0.82)
                     .opacity(appeared ? 1 : 0)
 
                 Text(BrandConfiguration.current.legalName.uppercased())
@@ -32,16 +34,19 @@ struct SplashView: View {
                     .font(Theme.font(11.5))
                     .kerning(0.6)
                     .foregroundStyle(Theme.onBrand.opacity(0.45))
+                    .multilineTextAlignment(.center)
                     .padding(.bottom, 46)
                     .opacity(appeared ? 1 : 0)
             }
             .padding(.horizontal, 32)
         }
-        .task {
-            withAnimation(.easeOut(duration: 0.55)) { appeared = true }
-            try? await Task.sleep(for: .milliseconds(1100))
-            withAnimation(.easeInOut(duration: 0.25)) { appState.finishSplash() }
-        }
+        .task { await runBrandMoment() }
+    }
+
+    private func runBrandMoment() async {
+        withAnimation(.easeOut(duration: 0.55)) { appeared = true }
+        try? await Task.sleep(for: .milliseconds(1100))
+        withAnimation(.easeInOut(duration: 0.25)) { appState.finishSplash() }
     }
 }
 

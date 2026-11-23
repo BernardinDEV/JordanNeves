@@ -14,5 +14,11 @@
 		<key>NSRequiresCertificateTransparency</key>
 		<true/>
 	</dict>
+	<!-- Fonte somente leitura de teste: vêm de Config/Secrets.xcconfig, fora do
+	     git. Vazios quando o arquivo não existe. -->
+	<key>ADVReadOnlyAPIBaseURL</key>
+	<string>$(READONLY_API_BASE_URL)</string>
+	<key>ADVReadOnlyAPIKey</key>
+	<string>$(READONLY_API_KEY)</string>
 </dict>
 </plist>

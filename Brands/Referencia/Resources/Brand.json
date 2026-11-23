@@ -22,7 +22,8 @@
     }
   },
   "api": {
-    "baseURL": "https://api.referencia.example"
+    "baseURL": "https://api.referencia.example",
+    "mode": "demo"
   },
   "store": {
     "appStoreID": null

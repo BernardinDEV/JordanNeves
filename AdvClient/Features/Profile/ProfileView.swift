@@ -11,36 +11,36 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    Text("profile.title")
-                        .font(Theme.font(34, weight: .bold))
-                        .foregroundStyle(Theme.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .sideMargin()
-                        .padding(.top, 14)
-                        .padding(.bottom, 16)
-
-                    companyCard
+                VStack(spacing: 0) {
+                    if let company = appState.company {
+                        CompanyCard(company: company)
+                    }
 
                     SectionHeader("profile.section.account")
                     RowCard {
-                        AppListRow(
-                            title: Format.string("profile.users"),
-                            subtitle: Format.string("profile.users.count \(3)"),
-                            systemImage: "person.2"
-                        )
-                        RowDivider()
+                        // Informativas: sem chevron, porque não levam a lugar nenhum.
+                        // Pessoa física não tem "usuários da empresa".
+                        if !appState.isPersonalAccount {
+                            AppListRow(
+                                title: Format.string("profile.users"),
+                                subtitle: Format.string("profile.users.count \(3)"),
+                                systemImage: "person.2",
+                                showsChevron: false
+                            )
+                            RowDivider()
+                        }
                         AppListRow(
                             title: Format.string("profile.notifications"),
                             subtitle: Format.string("profile.notifications.value"),
-                            systemImage: "bell"
+                            systemImage: "bell",
+                            showsChevron: false
                         )
                         if appState.canUseBiometrics {
                             RowDivider()
-                            biometricRow
+                            BiometricToggleRow()
                         }
                         RowDivider()
-                        languageRow
+                        LanguagePickerRow()
                     }
                     .sideMargin()
 
@@ -56,9 +56,7 @@ struct ProfileView: View {
                             )
                             RowDivider()
                         }
-                        Button {
-                            if let url = appState.whatsAppURL(.general) { openURL(url) }
-                        } label: {
+                        Button(action: openWhatsApp) {
                             AppListRow(
                                 title: Format.string("profile.whatsapp"),
                                 subtitle: "\(BrandConfiguration.current.contact.phone) · \(BrandConfiguration.current.contact.businessHours.resolved())",
@@ -67,22 +65,22 @@ struct ProfileView: View {
                                 isMonoSubtitle: true
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(RowPressStyle())
                     }
                     .sideMargin()
 
                     SectionHeader("profile.section.privacy")
                     RowCard {
-                        Button { showDeleteInfo = true } label: {
+                        Button(action: askAboutDeletion) {
                             AppListRow(
                                 title: Format.string("profile.deleteAccount"),
                                 subtitle: Format.string("profile.deleteAccount.subtitle"),
                                 systemImage: "trash"
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(RowPressStyle())
                         RowDivider()
-                        Button { showSignOutConfirm = true } label: {
+                        Button(action: askToSignOut) {
                             AppListRow(
                                 title: Format.string("profile.signOut"),
                                 systemImage: "rectangle.portrait.and.arrow.right",
@@ -90,7 +88,16 @@ struct ProfileView: View {
                                 showsChevron: false
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(RowPressStyle())
+                        // Preso ao botão que o abre, para o diálogo nascer dele.
+                        .confirmationDialog(
+                            Text("profile.signOut.confirm"),
+                            isPresented: $showSignOutConfirm,
+                            titleVisibility: .visible
+                        ) {
+                            Button("profile.signOut", role: .destructive, action: signOut)
+                            Button("common.cancel", role: .cancel) {}
+                        }
                     }
                     .sideMargin()
 
@@ -103,20 +110,10 @@ struct ProfileView: View {
                 .padding(.bottom, 28)
             }
             .background(Theme.background)
-            .toolbar(.hidden, for: .navigationBar)
-            .confirmationDialog(
-                Text("profile.signOut.confirm"),
-                isPresented: $showSignOutConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("profile.signOut", role: .destructive) { appState.signOut() }
-                Button("common.cancel", role: .cancel) {}
-            }
+            .navigationTitle(Text("profile.title"))
             .alert(Text("profile.deleteAccount"), isPresented: $showDeleteInfo) {
                 Button("common.ok", role: .cancel) {}
-                Button("profile.deleteAccount.request") {
-                    if let url = appState.whatsAppURL(.general) { openURL(url) }
-                }
+                Button("profile.deleteAccount.request", action: openWhatsApp)
             } message: {
                 // Accounts are created by the firm, so deletion is a request —
                 // and the app has to say plainly what the law obliges the firm to
@@ -126,86 +123,20 @@ struct ProfileView: View {
         }
     }
 
-    private var companyCard: some View {
-        HStack(spacing: 14) {
-            Text(appState.company?.initials ?? "")
-                .font(Theme.font(17, weight: .semibold))
-                .foregroundStyle(Theme.onBrand)
-                .frame(width: 52, height: 52)
-                .background(Theme.brass, in: Circle())
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(appState.company?.legalName ?? "")
-                    .font(Theme.font(16.5, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(Format.cnpj(appState.company?.cnpj ?? ""))
-                    .font(Theme.mono(12.5))
-                    .foregroundStyle(Theme.muted)
-                Text("profile.signedInAs \(appState.company?.userEmail ?? "")")
-                    .font(Theme.font(12))
-                    .foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-        .card()
-        .sideMargin()
+    private func openWhatsApp() {
+        if let url = appState.whatsAppURL(.general) { openURL(url) }
     }
 
-    private var biometricRow: some View {
-        HStack(spacing: 13) {
-            Image(systemName: "faceid")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(Theme.primary)
-                .frame(width: 38, height: 38)
-                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 10))
-
-            Toggle(isOn: Binding(
-                get: { appState.biometricEnabled },
-                set: { appState.setBiometricEnabled($0) }
-            )) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("profile.biometric \(appState.biometryName)")
-                        .font(Theme.font(15, weight: .medium))
-                        .foregroundStyle(Theme.primary)
-                    Text("profile.biometric.footer \(appState.biometryName)")
-                        .font(Theme.font(12.5))
-                        .foregroundStyle(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .tint(Theme.primary)
-        }
-        .padding(.horizontal, 15)
-        .padding(.vertical, 12)
+    private func askAboutDeletion() {
+        showDeleteInfo = true
     }
 
-    private var languageRow: some View {
-        HStack(spacing: 13) {
-            Image(systemName: "globe")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(Theme.primary)
-                .frame(width: 38, height: 38)
-                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 10))
+    private func askToSignOut() {
+        showSignOutConfirm = true
+    }
 
-            Picker(selection: Binding(
-                get: { appState.language },
-                set: { appState.language = $0 }
-            )) {
-                ForEach(AppLanguage.allCases) { language in
-                    Text(language.labelKey).tag(language)
-                }
-            } label: {
-                Text("profile.language")
-                    .font(Theme.font(15, weight: .medium))
-                    .foregroundStyle(Theme.primary)
-            }
-            .tint(Theme.primary)
-        }
-        .padding(.horizontal, 15)
-        .padding(.vertical, 6)
-        .frame(minHeight: Theme.minTouchTarget + 12)
+    private func signOut() {
+        appState.signOut()
     }
 
     private var appVersion: String {

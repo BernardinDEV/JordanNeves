@@ -7,135 +7,159 @@ struct UploadSheet: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var pickedFileName: String?
+    @State private var pickedFile: UploadFile?
     @State private var selectedCaseID: UUID?
     @State private var isImporting = false
     @State private var isSending = false
+    @State private var didSend = false
     @State private var progress: Double = 0
+    @State private var showsError = false
+    @State private var errorMessage = ""
+    /// Falha no envio pode ser repetida; arquivo ilegível ou grande demais, não.
+    @State private var canRetry = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("upload.subtitle")
-                        .font(Theme.font(14))
-                        .foregroundStyle(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Button {
-                        isImporting = true
-                    } label: {
-                        VStack(spacing: 5) {
-                            Image(systemName: "arrow.up.doc")
-                                .font(.system(size: 26, weight: .light))
-                                .foregroundStyle(Theme.primary)
-                            Text("upload.choose")
-                                .font(Theme.font(15, weight: .semibold))
-                                .foregroundStyle(Theme.primary)
-                                .padding(.top, 5)
-                            Text("upload.sources")
-                                .font(Theme.font(12.5))
-                                .foregroundStyle(Theme.muted)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(22)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radius.card)
-                                .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-                                .foregroundStyle(Theme.line)
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    if let pickedFileName {
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 17))
-                                .foregroundStyle(Theme.primary)
-                                .frame(width: 38, height: 38)
-                                .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(pickedFileName)
-                                    .font(Theme.font(14, weight: .medium))
-                                    .foregroundStyle(Theme.primary)
-                                    .lineLimit(1)
-                                if isSending {
-                                    ProgressView(value: progress)
-                                        .tint(Theme.primary)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .padding(12)
-                        .background(Theme.fill, in: RoundedRectangle(cornerRadius: 12))
-                    }
-
-                    LabeledField(label: "upload.forCase") {
-                        Picker("upload.forCase", selection: $selectedCaseID) {
-                            Text("upload.noCase").tag(UUID?.none)
-                            ForEach(appState.openCases) { legalCase in
-                                Text(legalCase.title).tag(UUID?.some(legalCase.id))
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .tint(Theme.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    Button {
-                        send()
-                    } label: {
-                        if isSending {
-                            ProgressView().tint(Theme.onBrand)
-                        } else {
-                            Text("upload.action.send")
-                        }
-                    }
-                    .buttonStyle(PrimaryButtonStyle(isEnabled: pickedFileName != nil && !isSending))
-                    .disabled(pickedFileName == nil || isSending)
-                    .padding(.top, 4)
+            Group {
+                if didSend {
+                    UploadSentView(fileName: pickedFile?.name ?? "", onClose: close)
+                } else {
+                    form
                 }
-                .sideMargin()
-                .padding(.top, 12)
-                .padding(.bottom, 28)
             }
             .background(Theme.background)
-            .navigationTitle(Text("upload.title"))
+            .navigationTitle(didSend ? Text(verbatim: "") : Text("upload.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("common.close") { dismiss() }
+                if !didSend {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("common.close", action: close)
+                    }
                 }
             }
         }
         .presentationDetents([.medium, .large])
+        // Fechar por arrasto no meio do envio deixaria o cliente sem saber se
+        // o arquivo chegou.
+        .interactiveDismissDisabled(isSending)
+        .sensoryFeedback(.success, trigger: didSend)
         .fileImporter(
             isPresented: $isImporting,
             allowedContentTypes: [.pdf, .image, .plainText, .spreadsheet],
-            allowsMultipleSelection: false
-        ) { result in
-            if case let .success(urls) = result, let url = urls.first {
-                pickedFileName = url.lastPathComponent
+            allowsMultipleSelection: false,
+            onCompletion: didPickFile
+        )
+        .alert(Text("error.action.title"), isPresented: $showsError) {
+            if canRetry {
+                Button("common.tryAgain", action: send)
+                Button("common.cancel", role: .cancel) {}
+            } else {
+                Button("common.ok", role: .cancel) {}
             }
+        } message: {
+            Text(errorMessage)
         }
-        .onAppear {
-            selectedCaseID = appState.casesRequiringClient.first?.id ?? appState.openCases.first?.id
+        .onAppear(perform: preselectCase)
+    }
+
+    private var form: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("upload.subtitle")
+                    .font(Theme.font(14))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button(action: chooseFile) {
+                    UploadDropZone()
+                }
+                .buttonStyle(CardPressStyle())
+                .disabled(isSending)
+
+                if let pickedFile {
+                    PickedFileRow(fileName: pickedFile.name, progress: isSending ? progress : nil)
+                }
+
+                LabeledField(label: "upload.forCase") {
+                    Picker("upload.forCase", selection: $selectedCaseID) {
+                        Text("upload.noCase").tag(UUID?.none)
+                        ForEach(appState.openCases) { legalCase in
+                            Text(legalCase.title).tag(UUID?.some(legalCase.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(Theme.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .disabled(isSending)
+
+                Button(action: send) {
+                    LoadingLabel("upload.action.send", isLoading: isSending)
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(pickedFile == nil || isSending)
+                .padding(.top, 4)
+            }
+            .sideMargin()
+            .padding(.top, 12)
+            .padding(.bottom, 28)
         }
     }
 
+    private func close() {
+        dismiss()
+    }
+
+    private func chooseFile() {
+        isImporting = true
+    }
+
+    private func didPickFile(_ result: Result<[URL], Error>) {
+        guard case let .success(urls) = result, let url = urls.first else { return }
+        do {
+            let file = try UploadFile(contentsOf: url)
+            guard file.data.count <= UploadFile.maxBytes else {
+                show(Format.string("upload.error.tooLarge"))
+                return
+            }
+            pickedFile = file
+        } catch {
+            show(Format.string("upload.error.unreadable"))
+        }
+    }
+
+    private func show(_ message: String, canRetry: Bool = false) {
+        errorMessage = message
+        self.canRetry = canRetry
+        showsError = true
+    }
+
+    private func preselectCase() {
+        selectedCaseID = appState.casesRequiringClient.first?.id ?? appState.openCases.first?.id
+    }
+
     private func send() {
-        guard let pickedFileName else { return }
+        guard let pickedFile, !isSending else { return }
         isSending = true
+        progress = 0
         Task {
-            // Stand-in for a real multipart upload against a signed URL.
-            for step in 1...10 {
+            defer { isSending = false }
+            // Progresso indicativo: `URLSession` com `data(for:)` não reporta
+            // bytes enviados. Trocar por `upload(for:from:delegate:)` quando o
+            // backend existir dá a barra real.
+            for step in 1...9 {
                 try? await Task.sleep(for: .milliseconds(70))
                 progress = Double(step) / 10
             }
-            await appState.upload(fileName: pickedFileName, caseID: selectedCaseID)
-            isSending = false
-            dismiss()
+            do {
+                try await appState.upload(pickedFile, caseID: selectedCaseID)
+                // A confirmação diz o que vem a seguir — fechar a folha em
+                // silêncio deixava o cliente sem saber se o arquivo chegou.
+                withAnimation { didSend = true }
+            } catch {
+                show(appState.userMessage(for: error), canRetry: true)
+            }
         }
     }
 }

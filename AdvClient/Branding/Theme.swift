@@ -78,101 +78,76 @@ enum Theme {
 
     // MARK: Typography (brand font with system fallback)
 
+    /// Texto de interface no tamanho do protótipo, **acompanhando o Dynamic
+    /// Type**. O tamanho pedido escolhe o estilo de texto do sistema mais
+    /// próximo; quem aumenta a letra nos Ajustes vê o app inteiro crescer junto.
+    ///
+    /// Antes isto devolvia `.system(size:)`, que é tamanho fixo: o app ignorava
+    /// a preferência de quem não enxerga letra de 13 pt.
     static func font(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        let style = textStyle(for: size)
         if brandFontAvailable {
-            return Font.custom(BrandConfiguration.current.fontFamily, size: size).weight(weight)
+            // Fonte da marca: mantém o tamanho exato e escala relativo ao estilo.
+            return .custom(BrandConfiguration.current.fontFamily, size: size, relativeTo: style).weight(weight)
         }
-        return .system(size: size, weight: weight)
+        return .system(style, weight: weight)
     }
 
     /// Case numbers, money and dates. Tabular figures are not decoration here:
     /// a CNJ number is 20 digits and the client will compare it, character by
     /// character, against an e-mail from their accountant.
     static func mono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .monospaced)
+        .system(textStyle(for: size), design: .monospaced, weight: weight)
     }
 
-    static var brandFontAvailable: Bool {
-        UIFont(name: BrandConfiguration.current.fontFamily, size: 12) != nil
+    /// O estilo de texto do sistema mais próximo de um tamanho do protótipo.
+    static func textStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case ..<11.75: .caption2
+        case ..<12.75: .caption
+        case ..<13.75: .footnote
+        case ..<15.75: .subheadline
+        case ..<16.75: .callout
+        case ..<18.5: .body
+        case ..<21: .title3
+        case ..<27: .title2
+        case ..<31: .title
+        default: .largeTitle
+        }
     }
+
+    /// Resolvido uma única vez. Era uma propriedade computada que fazia
+    /// `UIFont(name:)` a **cada** chamada de `Theme.font` — centenas por
+    /// atualização de tela, e a busca por uma fonte que não existe é a mais
+    /// cara que o sistema de fontes faz.
+    static let brandFontAvailable: Bool = {
+        registerBundledFonts()
+        return UIFont(name: BrandConfiguration.current.fontFamily, size: 12) != nil
+    }()
 
     /// Registers every font bundled under Resources/Fonts at launch,
-    /// so brands can ship fonts without Info.plist entries.
+    /// so brands can ship fonts without Info.plist entries. Idempotent.
     static func registerBundledFonts() {
-        let extensions = ["ttf", "otf"]
-        for ext in extensions {
+        _ = bundledFontsRegistration
+    }
+
+    private static let bundledFontsRegistration: Void = {
+        for ext in ["ttf", "otf"] {
             for url in Bundle.main.urls(forResourcesWithExtension: ext, subdirectory: nil) ?? [] {
                 CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
             }
         }
-    }
-}
+    }()
 
-// MARK: - Button styles
+    // MARK: Navigation bar
 
-struct PrimaryButtonStyle: ButtonStyle {
-    var isEnabled = true
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(Theme.font(16, weight: .semibold))
-            .frame(maxWidth: .infinity, minHeight: 50)
-            .background(Theme.primary.opacity(configuration.isPressed ? 0.85 : 1))
-            .foregroundStyle(Theme.onBrand)
-            .clipShape(RoundedRectangle(cornerRadius: 13))
-            .opacity(isEnabled ? 1 : 0.45)
-    }
-}
-
-struct SecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(Theme.font(15, weight: .semibold))
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .background(Theme.fill.opacity(configuration.isPressed ? 0.7 : 1))
-            .foregroundStyle(Theme.primary)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line, lineWidth: 1))
-    }
-}
-
-/// The one green thing in the app. It is deliberately not the primary style:
-/// leaving for WhatsApp is an exit, never the main action on a screen.
-struct WhatsAppButtonStyle: ButtonStyle {
-    static let green = Color(red: 27 / 255, green: 140 / 255, blue: 90 / 255)
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(Theme.font(15, weight: .semibold))
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .background(Self.green.opacity(configuration.isPressed ? 0.12 : 0.07))
-            .foregroundStyle(Self.green)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Self.green.opacity(0.4), lineWidth: 1))
-    }
-}
-
-// MARK: - Surfaces
-
-struct CardBackground: ViewModifier {
-    var padding: CGFloat = Theme.Space.card
-
-    func body(content: Content) -> some View {
-        content
-            .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
-            .shadow(color: Theme.primary.opacity(0.06), radius: 8, y: 3)
-    }
-}
-
-extension View {
-    func card(padding: CGFloat = Theme.Space.card) -> some View {
-        modifier(CardBackground(padding: padding))
-    }
-
-    func sideMargin() -> some View {
-        padding(.horizontal, Theme.Space.side)
+    /// Pinta os títulos da barra de navegação com a cor da marca. A barra é a
+    /// do sistema — material, título grande que recolhe, gesto de voltar — e só
+    /// a tinta muda. O SwiftUI ainda não expõe a cor do título, daí o UIKit.
+    static func applyNavigationBarAppearance() {
+        guard let color = UIColor(named: "BrandPrimary") else { return }
+        let bar = UINavigationBar.appearance()
+        bar.largeTitleTextAttributes = [.foregroundColor: color]
+        bar.titleTextAttributes = [.foregroundColor: color]
     }
 }

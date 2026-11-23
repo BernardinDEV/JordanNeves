@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Manifesto de privacidade do núcleo — vale para toda marca, porque o código é
+  o mesmo. Fica em AdvClient/, que entra no pacote de todo target de app.
+
+  Sem ele, o envio ao App Store Connect volta com ITMS-91053 (API de motivo
+  obrigatório sem declaração).
+
+  Ao mudar o código, revise aqui:
+  - API de motivo obrigatório nova (data de arquivo, espaço em disco, tempo
+    desde o boot, teclados ativos) entra em NSPrivacyAccessedAPITypes.
+  - Dado novo que sai do aparelho entra em NSPrivacyCollectedDataTypes, e o
+    rótulo de privacidade de CADA marca no App Store Connect precisa acompanhar.
+  - SDK de terceiros traz o próprio manifesto; não copie as entradas dele aqui.
+-->
+<plist version="1.0">
+<dict>
+	<!-- O app não rastreia: nada é cruzado com dados de outras empresas, e não
+	     há SDK de publicidade ou analytics. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!-- UserDefaults guarda só preferência do próprio app: idioma escolhido,
+		     onboarding visto, primeira abertura. Nada de sessão nem de cliente,
+		     que ficam no Keychain. CA92.1 = lido e gravado só por este app. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- O que sai do aparelho com a marca em "mode": "remote". Em demonstração
+	     nada sai, mas o manifesto descreve o app que vai para a loja. Tudo é
+	     ligado à identidade do cliente e serve só para o app funcionar. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!-- O e-mail convidado pelo escritório: é o login. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Os arquivos que o cliente envia ao escritório. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Confirmação de presença em audiência e o registro de saída para o
+		     WhatsApp (quem, qual caso, quando — nunca o conteúdo da conversa).
+		     É a trilha que o escritório consulta, não métrica de uso. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

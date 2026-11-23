@@ -17,6 +17,12 @@ struct AdvClientApp: App {
 
     init() {
         Theme.registerBundledFonts()
+        Theme.applyNavigationBarAppearance()
+    }
+
+    /// Algo cobre o conteúdo: tela de privacidade, bloqueio ou aparelho comprometido.
+    private var isObscured: Bool {
+        showPrivacyScreen || isLocked || isCompromisedDevice
     }
 
     var body: some Scene {
@@ -28,16 +34,20 @@ struct AdvClientApp: App {
                     // The design uses fixed light surfaces (white cards on light gray);
                     // lock light appearance until a dark palette is designed.
                     .preferredColorScheme(.light)
+                    // Coberto para os olhos tem que estar coberto para o
+                    // VoiceOver: sem isto ele lia os processos por baixo da
+                    // tela de bloqueio.
+                    .accessibilityHidden(isObscured)
 
                 // Hides sensitive case data in the app switcher while backgrounded.
-                if showPrivacyScreen { privacyOverlay }
+                if showPrivacyScreen { PrivacyOverlay() }
 
                 // Biometric gate after returning to the foreground.
-                if isLocked { lockedOverlay }
+                if isLocked { LockedOverlay(unlock: unlock) }
 
                 // Blocking screen instead of exit(0) — programmatic termination
                 // is rejected by App Review and reads as a crash to the user.
-                if isCompromisedDevice { tamperOverlay }
+                if isCompromisedDevice { TamperOverlay() }
             }
             .environment(\.locale, appState.language.locale)
             // Cold launch: onChange(scenePhase) does not fire for the initial
@@ -45,21 +55,28 @@ struct AdvClientApp: App {
             .task { runSecurityChecks() }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            switch newPhase {
-            case .active:
-                withAnimation(.easeOut(duration: 0.2)) { showPrivacyScreen = false }
-                if didEnterBackground {
-                    didEnterBackground = false
-                    runSecurityChecks()
-                }
-            case .background:
-                didEnterBackground = true
-                withAnimation(.easeIn(duration: 0.15)) { showPrivacyScreen = true }
-            case .inactive:
-                withAnimation(.easeIn(duration: 0.15)) { showPrivacyScreen = true }
-            @unknown default:
-                break
+            scenePhaseChanged(to: newPhase)
+        }
+    }
+
+    private func scenePhaseChanged(to phase: ScenePhase) {
+        switch phase {
+        case .active:
+            withAnimation(.easeOut(duration: 0.2)) { showPrivacyScreen = false }
+            if didEnterBackground {
+                didEnterBackground = false
+                // Prazos e contagens dependem do dia: quem volta depois da
+                // meia-noite não pode ver "em 3 dias" de ontem.
+                appState.didReturnToForeground()
+                runSecurityChecks()
             }
+        case .background:
+            didEnterBackground = true
+            withAnimation(.easeIn(duration: 0.15)) { showPrivacyScreen = true }
+        case .inactive:
+            withAnimation(.easeIn(duration: 0.15)) { showPrivacyScreen = true }
+        @unknown default:
+            break
         }
     }
 
@@ -80,102 +97,16 @@ struct AdvClientApp: App {
                 isCompromisedDevice = true
                 return
             }
-            let unlocked = await appState.evaluateBiometricLock()
-            withAnimation { isLocked = !unlocked }
+            await evaluateLock()
         }
     }
 
-    // MARK: - Overlays
-
-    private var privacyOverlay: some View {
-        Theme.background
-            .ignoresSafeArea()
-            .overlay(
-                Image("LogoVertical")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 180)
-                    .opacity(0.5)
-            )
+    private func unlock() {
+        Task { await evaluateLock() }
     }
 
-    private var lockedOverlay: some View {
-        Theme.background
-            .ignoresSafeArea()
-            .overlay(
-                VStack(spacing: 20) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 56))
-                        .foregroundStyle(Theme.primary)
-                    Button("lock.unlock") {
-                        Task {
-                            let unlocked = await appState.evaluateBiometricLock()
-                            withAnimation { isLocked = !unlocked }
-                        }
-                    }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .frame(maxWidth: 220)
-                }
-                .padding(32)
-            )
-    }
-
-    private var tamperOverlay: some View {
-        Theme.background
-            .ignoresSafeArea()
-            .overlay(
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.shield.fill")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.red)
-                    Text("tamper.title")
-                        .font(Theme.font(20, weight: .bold))
-                        .foregroundStyle(Theme.primary)
-                    Text("tamper.message")
-                        .font(Theme.font(14))
-                        .foregroundStyle(Theme.muted)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(32)
-            )
-    }
-}
-
-/// Launch sequence: brand moment → three benefits → passwordless sign-in → app.
-/// Each step is skipped once it has been passed, so a returning client with a
-/// stored session goes straight to the dashboard.
-struct RootView: View {
-    @Environment(AppState.self) private var appState
-
-    var body: some View {
-        Group {
-            #if DEBUG
-            if let route = DemoRoute.current {
-                DemoRouteView(route: route)
-            } else {
-                flow
-            }
-            #else
-            flow
-            #endif
-        }
-        .transition(.opacity)
-        .animation(.easeInOut(duration: 0.25), value: appState.phase)
-    }
-
-    @ViewBuilder
-    private var flow: some View {
-        Group {
-            switch appState.phase {
-            case .splash:
-                SplashView()
-            case .onboarding:
-                OnboardingView()
-            case .signIn:
-                SignInFlow()
-            case .ready:
-                MainTabView()
-            }
-        }
+    private func evaluateLock() async {
+        let unlocked = await appState.evaluateBiometricLock()
+        withAnimation { isLocked = !unlocked }
     }
 }

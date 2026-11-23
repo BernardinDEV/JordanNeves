@@ -18,7 +18,11 @@ python3 scripts/verificar.py
 
 Confere o `project.pbxproj`, os JSON e plists, as chaves de `Info.plist` que o código
 exige em runtime, os assets que o núcleo pede de toda marca, o `Brand.json`, vazamento de
-escritório no núcleo e o catálogo de strings nos dois idiomas. Sai com 1 se falhar, para
+escritório no núcleo, o catálogo de strings nos dois idiomas e o manifesto de privacidade
+(`AdvClient/Resources/PrivacyInfo.xcprivacy`, um só para todas as marcas): falha se o código usa
+uma API de motivo obrigatório que ele não declara — o que voltaria do App Store Connect como
+ITMS-91053. Dado novo que sai do aparelho também entra lá, e no rótulo de privacidade de cada
+marca no App Store Connect. Sai com 1 se falhar, para
 servir de passo de CI. Não substitui o build — pega a classe de erro que o compilador não pega.
 
 ## Rodar
@@ -27,6 +31,25 @@ servir de passo de CI. Não substitui o build — pega a classe de erro que o co
 2. Escolha o scheme da marca (**JordanNeves**) e um simulador de iPhone.
 3. **Acesso de demonstração:** e-mail `financeiro@costalog.com.br`, código `492718`.
    Não há senha — o acesso é por código de 6 dígitos + Face ID.
+   Cada marca pode aceitar e-mails próprios na demonstração, com o mesmo código, em
+   `"demo": { "invitedEmails": [...] }` no `Brand.json` (a marca JordanNeves aceita
+   `jhordan.neves@hotmail.com`). O `Brand.json` vai dentro do app: não ponha ali e-mail que não
+   possa ser visto por quem instalar.
+   O mesmo bloco escolhe o conjunto de demonstração e o titular da conta:
+   `"dataset": "personal"` troca a empresa do protótipo por uma conta de pessoa física (CPF,
+   13 processos — de dois a três em cada estado, um em segredo de justiça, um encerrado —, contratos
+   e documentos pessoais), e `"account": { "name", "document", "email" }` põe a conta em nome de
+   alguém. A marca JordanNeves está assim, em nome de Jordan Neves. Os dados ficam em
+   `AdvClient/Core/Demo/`; a marca de referência e os testes seguem com a empresa.
+
+Antes de arquivar, compile em **Release** — é a configuração do archive, e o build de Debug e os
+testes não a exercitam (código atrás de `#if DEBUG` some, mas as prévias `#Preview` continuam
+sendo compiladas):
+
+```bash
+xcodebuild build -project AdvClient.xcodeproj -scheme JordanNeves -configuration Release \
+  -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO
+```
 
 Testes rodam no scheme **Referencia**, não no da marca:
 
@@ -41,10 +64,15 @@ xcodebuild test -project AdvClient.xcodeproj -scheme Referencia \
 AdvClient/            núcleo — não pode citar escritório nenhum
   AdvClientApp.swift  @main, ciclo de vida, bloqueio biométrico
   AppState.swift      estado observável, troca de idioma, sessão
-  Branding/           BrandConfiguration (lê o Brand.json), Theme (tokens), Components
+  Branding/           BrandConfiguration (lê o Brand.json), Theme (tokens)
+    Components/       um componente por arquivo: CaseCard, AppListRow, StatePill…
+    Styles/           estilos de botão, superfície de cartão, checklist
   Core/               modelos, regras, formatadores, protocolos, segurança
+    PortfolioIndex    tudo o que as telas derivam do snapshot, calculado uma vez
   Core/Networking/    camada de rede: cliente, padrão de erro, cache, endurecimento
-  Features/           uma pasta por jornada
+  Features/           uma pasta por jornada; uma view por arquivo
+    Navigation/       AppRoute — todo destino de lista, registrado uma vez por aba
+    Shared/           aviso de falha de atualização, rodapé de sincronização
   Resources/          Localizable.xcstrings, InfoPlist.xcstrings
 
 Brands/
@@ -274,10 +302,52 @@ await client.purgeCache()
 await SecurityGate.shared.invalidate()
 ```
 
-## Backend (depois)
+## Backend e provedores jurídicos
 
-Implemente `ClientDataRepository` e `AuthService` sobre o `APIClient` acima e troque as instâncias em
-`AppState.swift`. Nenhuma tela muda.
+O app fala com **uma** API, a do produto. O provedor jurídico de cada escritório — Projuris ADV,
+outro sistema, DataJud — fica atrás dela, num conector do servidor. A credencial desses provedores
+abre a carteira inteira do escritório e não pode ir dentro de um app instalado por clientes.
+
+O lado do app está pronto em `AdvClient/Core/Services/`; uma marca passa a usar a API com
+`"mode": "remote"` no `Brand.json`. Desenho, contrato v1 e o mapeamento do Projuris em
+[`docs/camada-de-servico.md`](docs/camada-de-servico.md).
+
+### Fonte somente leitura de teste (`"mode": "readonly"`)
+
+Para testar com processos reais antes de a API do produto existir. A marca Jordan Neves usa este
+modo desde 13/11/2026, com a API de teste do Jordan: só leitura (`GET /app/v1/processos`), só os
+processos dele.
+
+- **A chave não entra no código nem no git.** Copie `Config/Secrets.example.xcconfig` para
+  `Config/Secrets.xcconfig` (ignorado pelo git) e preencha `READONLY_API_BASE_URL` e
+  `READONLY_API_KEY`. O build passa os dois para o `Info.plist`. As variáveis de ambiente
+  `ADV_READONLY_API_BASE_URL` e `ADV_READONLY_API_KEY` do esquema do Xcode têm prioridade.
+- **A chave viaja no app instalado** (no `Info.plist`). Serve para teste interno; uma marca em
+  `readonly` não vai para a loja, e `scripts/verificar.py` avisa.
+- Login de demonstração (mesmos e-mails e código). A fonte não separa clientes: mostra tudo o que a
+  chave enxerga.
+- O texto do andamento **não aparece** (regra 2): o app mostra só a data e a origem da última
+  movimentação, com "explicação ainda não publicada". Parte contrária, valor, risco e advogado
+  somem da tela, porque a fonte não informa. Documentos e envio ficam desligados.
+- `atualizado_em` nulo: o app não mostra "Atualizado em …" em vez de inventar uma data.
+- Chave recusada (401) aparece como falha de carga e não derruba o login.
+- Código em `AdvClient/Core/Services/ReadOnly/`; testes em `AdvClientTests/ReadOnlySourceTests.swift`.
+  Para voltar à demonstração, `"mode": "demo"` no `Brand.json`.
+
+Outros documentos em `docs/`:
+
+| Arquivo | O quê |
+| --- | --- |
+| [`app/README.md`](docs/app/README.md) | **Documentação do app**: telas, arquitetura, rede e segurança, white label, desenvolvimento, publicação na loja |
+| [`api/README.md`](docs/api/README.md) | **Documentação da API do produto**: convenções, autenticação, rotas, modelos, erros, servidor, evolução, OpenAPI |
+| [`regras-do-produto.md`](docs/regras-do-produto.md) | As regras que app e servidor aplicam igual: publicação, estado do caso, 60/30/7, notificações |
+| [`conectar-projuris.md`](docs/conectar-projuris.md) | Roteiro para ligar a API do Projuris: autenticação, mapeamento, sincronização, checklist |
+| [`valor-do-produto.md`](docs/valor-do-produto.md) | Estimativa de quanto o app vale para um escritório e como cobrar |
+| [`arquitetura-cloudkit-analise.md`](docs/arquitetura-cloudkit-analise.md) | Pontos fracos de um modelo app cliente + app advogado com conversa no CloudKit |
+| [`custo-da-api.md`](docs/custo-da-api.md) | Custo de construir e manter a API do produto, vantagens e o que se reaproveita entre escritórios |
+| [`plano-v2.md`](docs/plano-v2.md) | Plano da v2: escopo, decisões, fases, backlog, critérios do piloto, riscos e custo |
+| [`resposta-relatorio-jordan.md`](docs/resposta-relatorio-jordan.md) | Resposta ao relatório de aprimoramentos do Jordan (13/11/2026): o que já se confirma, ajustes rápidos, efeito na v2 |
+| [`apresentacao-proposta.md`](docs/apresentacao-proposta.md) | Roteiro da apresentação da proposta ao escritório: entregas, prazo, valores e economia estimada |
 
 O `ClientSnapshot.lastSyncedAt` é exibido ao cliente literalmente — o app nunca deve sugerir que os
 dados são mais recentes do que são. `Fetched.servedAt` é a fonte certa para ele quando a resposta
@@ -288,11 +358,14 @@ vier do cache.
 Builds de Debug aceitam `DEMO_ROUTE`:
 
 ```bash
-SIMCTL_CHILD_DEMO_ROUTE=contract xcrun simctl launch booted br.adv.jordanneves.app
+SIMCTL_CHILD_DEMO_ROUTE=contract xcrun simctl launch booted com.LumaRaySoftware.jordannevesadvogados
 ```
 
-Rotas: `onboarding`, `signIn`, `home`, `notifications`, `cases`, `caseDetail`, `sealedCase`,
-`movement`, `hearing`, `documents`, `contract`, `upload`, `profile`.
+O identificador é o `BRAND_BUNDLE_ID` do `Brand.xcconfig` da marca.
+
+Rotas: `onboarding`, `signIn`, `code`, `home`, `notifications`, `cases`, `caseDetail`,
+`sealedCase`, `movement`, `hearing`, `hearingConfirmed`, `documents`, `contract`, `upload`,
+`uploadSent`, `contact`, `profile`. As rotas de aba abrem cada uma na sua aba.
 
 ## Revisão de 26/08/2026
 
@@ -315,8 +388,8 @@ contra as instruções do projeto. Dez achados confirmados por leitura.
 
 | # | Onde | O quê |
 |---|---|---|
-| 6 | `HearingSheet.swift:201` | O `LOCATION` do `.ics` não escapa vírgula, que separa valores em iCalendar; endereço com vírgula chega truncado. |
-| 7 | `UploadSheet.swift:136` | `dismiss()` direto após o envio viola a regra 5 — a confirmação não diz o que vem a seguir. A audiência faz certo. |
+| 6 | `HearingSheet.swift:201` | ~~O `LOCATION` do `.ics` não escapa vírgula~~ — corrigido em 09/11/2026 (`HearingCalendarFile`). |
+| 7 | `UploadSheet.swift:136` | ~~`dismiss()` direto após o envio viola a regra 5~~ — corrigido em 09/11/2026 (`UploadSentView`). |
 | 9 | As duas marcas | Pedem Montserrat e nenhuma empacota `.ttf`; `Theme.brandFontAvailable` é sempre falso. |
 
 Também levantado e não tratado: não há estados de erro de rede nas quatro jornadas (`AppState`
@@ -324,6 +397,45 @@ declara `loadFailed` e nenhuma tela o lê, e três ações engolem falhas com `t
 já está desenhada no protótipo mas `AdvClientApp` trava `.preferredColorScheme(.light)`; o build
 declara iPad em `TARGETED_DEVICE_FAMILY` sem nenhuma adaptação de layout; `DeadlineLabel` foi criado
 para a regra 4 e nunca é usado; duas linhas do perfil desenham chevron sem serem tocáveis.
+
+## Refatoração de 09/11/2026 — telas, desempenho e usabilidade
+
+Revisão das telas contra as diretrizes de SwiftUI e as Human Interface Guidelines.
+
+**Usabilidade**
+
+| Onde | O quê |
+|---|---|
+| As cinco abas | A barra de navegação estava escondida e o título era desenhado à mão. Voltou a ser a do sistema: título grande que recolhe, material, gesto de voltar. |
+| `DocumentsView` | A busca existia no código e **não aparecia na tela** — `searchable` depende da barra que estava oculta. Agora fica sempre visível. O botão flutuante de envio virou item da barra. |
+| `Theme.font` | Tamanho fixo: o app ignorava o Dynamic Type. Cada tamanho do protótipo agora escolhe o estilo de texto do sistema mais próximo e acompanha a preferência do aparelho. Cartões e linhas reorganizam o selo quando a letra está em tamanho de acessibilidade. |
+| `HearingSheet`, `UploadSheet` | As ações engoliam falhas com `try?`: a tela dizia "presença confirmada" e "arquivo enviado" mesmo quando nada chegava ao escritório. Agora lançam, e a tela oferece tentar de novo. |
+| `UploadSheet` | Fecha o achado nº 7: o envio termina numa confirmação que diz o que vem a seguir. |
+| `HearingCalendarFile` | Fecha o achado nº 6: vírgula e ponto e vírgula escapados no `.ics`; horário em UTC. |
+| `Format.dateTime` | Em inglês, 14h30 aparecia como `02h30` (relógio de 12 horas sem AM/PM). Datas e horas passaram a usar o fuso do escritório, o mesmo de `Rules.calendar`. |
+| Painel, casos, documentos | `loadFailed` passou a ser lido: aviso no topo com a data do que está na tela e "Tentar de novo". Antes da primeira resposta aparece carregamento, não "nenhum caso". |
+| Botões | "Confirmar presença", "Pular", "Agora não" e "Ver todos" só respondiam ao toque sobre o texto. A área de toque agora é o botão inteiro, com 44 pt. Cartões e linhas dão retorno ao toque. |
+| `SignInFlow` | O passo do código é empilhado na navegação: voltar e arrastar da borda são os do sistema. A mensagem de código incorreto sumia no instante em que aparecia. |
+| `AdvClientApp` | Com o app bloqueado, o VoiceOver ainda lia os processos por baixo da tela de bloqueio. |
+| `ProfileView` | Linhas informativas perderam o chevron; a linha de idioma ganhou o rótulo que faltava. |
+| `DocumentBadge` | O mesmo contrato aparecia como "Decidir" numa lista e "Renovar" em outra. Uma regra só: a palavra vem do contrato, a cor vem da urgência. |
+
+**Desempenho**
+
+| Onde | O quê |
+|---|---|
+| `PortfolioIndex` | As listas derivadas eram propriedades computadas do `AppState`: filtravam, ordenavam e reaplicavam as regras a cada leitura, várias vezes por atualização de tela. Agora são calculadas uma vez por snapshot (e ao voltar ao primeiro plano, porque dependem do dia). |
+| `Theme.brandFontAvailable` | Fazia `UIFont(name:)` a cada chamada de `Theme.font` — centenas por atualização. Resolvido uma vez. |
+| `AppState.refresh` | Login e primeira tela disparavam duas buscas simultâneas. Quem pede durante uma busca espera por ela. |
+| `Format.money` | Um `NumberFormatter` novo por chamada virou `FormatStyle`. |
+| `PositionBar` | `GeometryReader` trocado por um `Layout` proporcional. |
+
+**Estrutura** — um tipo por arquivo, subviews como `View` próprias em vez de propriedades
+computadas, ações fora do `body`, rota de navegação tipada (`AppRoute`) no lugar de `UUID` solto
+e de destinos montados dentro do link.
+
+**Não tratado aqui:** tema escuro, layout de iPad, fontes da marca (achado nº 9) e
+`DeadlineLabel`, que continua sem uso.
 
 ## Pendente
 

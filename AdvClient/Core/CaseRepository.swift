@@ -13,6 +13,9 @@ struct ClientSnapshot: Sendable, Equatable {
     /// When the court data behind this snapshot was last refreshed. Shown to the
     /// client verbatim — the app must never imply it is fresher than it is.
     var lastSyncedAt: Date
+    /// O que o escritório oferece no app. Vem com os dados para valer também
+    /// quando a resposta sai do cache, sem rede.
+    var capabilities: ProviderCapabilities = .all
 
     static let empty = ClientSnapshot(cases: [], documents: [], pendencies: [], invoices: [], lastSyncedAt: .distantPast)
 }
@@ -24,7 +27,7 @@ protocol ClientDataRepository: Sendable {
     func snapshot(for companyID: UUID) async throws -> ClientSnapshot
     func confirmHearing(caseID: UUID) async throws -> ClientSnapshot
     func resolvePendency(id: UUID) async throws -> ClientSnapshot
-    func upload(fileName: String, caseID: UUID?) async throws -> ClientSnapshot
+    func upload(_ file: UploadFile, caseID: UUID?) async throws -> ClientSnapshot
     /// Records that the client left for WhatsApp from a given case. Only the
     /// trail — who, which case, when — never the content of the conversation.
     func recordWhatsAppHandoff(caseID: UUID?) async
@@ -42,11 +45,12 @@ actor MockClientRepository: ClientDataRepository {
     private var invoices: [Invoice]
     private var handoffs: [(caseID: UUID?, at: Date)] = []
 
-    init() {
-        cases = MockData.cases
-        documents = MockData.documents
-        pendencies = MockData.pendencies
-        invoices = MockData.invoices
+    /// O conjunto de demonstração que a marca pede (empresa ou pessoa física).
+    init(dataset: DemoDataset = .current) {
+        cases = dataset.cases
+        documents = dataset.documents
+        pendencies = dataset.pendencies
+        invoices = dataset.invoices
     }
 
     /// Test seam: build a repository over a specific dataset.
@@ -94,12 +98,12 @@ actor MockClientRepository: ClientDataRepository {
         return current
     }
 
-    func upload(fileName: String, caseID: UUID?) async throws -> ClientSnapshot {
+    func upload(_ file: UploadFile, caseID: UUID?) async throws -> ClientSnapshot {
         try? await Task.sleep(for: .milliseconds(600))
         documents.insert(
             ClientDocument(
                 id: UUID(),
-                title: fileName,
+                title: file.name,
                 kind: caseID == nil ? .corporate : .procedural,
                 caseID: caseID,
                 counterparty: nil,

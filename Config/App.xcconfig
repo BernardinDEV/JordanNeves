@@ -52,3 +52,11 @@ INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPort
 // ─────────── Localização ───────────
 SWIFT_EMIT_LOC_STRINGS = YES
 LOCALIZATION_PREFERS_STRING_CATALOGS = YES
+
+// ─────────── Fonte somente leitura (teste) ───────────
+// Usada pela marca com "mode": "readonly" no Brand.json. Os valores reais ficam
+// em Config/Secrets.xcconfig, que o git ignora — a chave nunca entra no código
+// nem no repositório. Modelo: Config/Secrets.example.xcconfig.
+READONLY_API_BASE_URL =
+READONLY_API_KEY =
+#include? "Secrets.xcconfig"

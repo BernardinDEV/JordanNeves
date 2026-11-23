@@ -8,6 +8,6 @@
 
 BRAND_ID = jordan-neves
 BRAND_DIR = Brands/JordanNeves
-BRAND_DISPLAY_NAME = AdvCliente
-BRAND_BUNDLE_ID = br.adv.advclient.JordanNeves
+BRAND_DISPLAY_NAME = Jordan Neves ADV
+BRAND_BUNDLE_ID = com.LumaRaySoftware.jordannevesadvogados
 BRAND_DEVELOPMENT_TEAM = 64764VK866

@@ -75,7 +75,54 @@ struct BrandConfiguration: Decodable {
     }
 
     struct API: Decodable {
+        /// De onde vêm os dados do escritório.
+        enum Mode: String, Decodable {
+            /// Dados de demonstração, sem rede. É o que a revisão da App Store
+            /// usa antes de o escritório ter backend.
+            case demo
+            /// A API canônica do produto, em `baseURL`. O provedor jurídico do
+            /// escritório (Projuris ADV ou outro) fica atrás dela, no servidor
+            /// — o app nunca sabe qual é.
+            case remote
+            /// Fonte somente leitura de teste: processos do escritório vindos
+            /// de `READONLY_API_BASE_URL`, com a chave de `Config/Secrets.xcconfig`.
+            /// Login de demonstração; sem documentos, sem ações.
+            case readonly
+        }
+
         let baseURL: String
+        /// Ausente vale `demo`. `scripts/verificar.py` avisa quando uma marca
+        /// ainda não está em `remote`.
+        let mode: Mode?
+
+        var resolvedMode: Mode { mode ?? .demo }
+    }
+
+    /// O que a demonstração desta marca aceita, além do que vale para todas.
+    struct Demo: Decodable {
+        /// Qual conjunto de dados de demonstração a marca mostra.
+        enum Dataset: String, Decodable {
+            /// Empresa com CNPJ — o protótipo. É o padrão.
+            case business
+            /// Pessoa física com CPF.
+            case personal
+        }
+
+        /// Quem aparece como titular da conta de demonstração.
+        struct Account: Decodable {
+            let name: String
+            /// CPF ou CNPJ, com ou sem pontuação.
+            let document: String
+            /// Ausente: o primeiro de `invitedEmails`.
+            let email: String?
+        }
+
+        /// E-mails que entram no login de demonstração, com o mesmo código.
+        /// Para o escritório testar com o próprio endereço sem que ele vá
+        /// parar no núcleo — que não pode citar escritório nenhum.
+        let invitedEmails: [String]?
+        let dataset: Dataset?
+        let account: Account?
     }
 
     struct Store: Decodable {
@@ -92,6 +139,8 @@ struct BrandConfiguration: Decodable {
     let contact: Contact
     let api: API
     let store: Store?
+    /// Opcional; só vale com `api.mode` em `demo`.
+    let demo: Demo?
 
     static let current: BrandConfiguration = {
         guard let url = Bundle.main.url(forResource: "Brand", withExtension: "json") else {

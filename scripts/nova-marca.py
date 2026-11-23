@@ -207,7 +207,10 @@ def create_brand_folder(args, target: str) -> Path:
             "city": "DEFINIR",
             "businessHours": {"pt-BR": "seg a sex, 9h–18h", "en": "Mon–Fri, 9am–6pm"},
         },
-        "api": {"baseURL": f"https://api.{args.dominio}" if args.dominio else "DEFINIR"},
+        "api": {
+            "baseURL": f"https://api.{args.dominio}" if args.dominio else "DEFINIR",
+            "mode": "demo",
+        },
         "store": {"appStoreID": None},
     }, ensure_ascii=False, indent=2) + "\n")
 

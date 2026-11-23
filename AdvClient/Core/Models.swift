@@ -12,6 +12,10 @@ struct Company: Identifiable, Codable, Hashable, Sendable {
     /// E-mail of the person currently signed in on this device.
     var userEmail: String
 
+    /// CPF tem 11 dígitos, CNPJ tem 14: o documento diz se a conta é de
+    /// pessoa física. O campo se chama `cnpj` por histórico — guarda os dois.
+    var isPersonal: Bool { cnpj.filter(\.isNumber).count == 11 }
+
     var initials: String {
         tradeName.split(separator: " ")
             .compactMap { $0.first.map(String.init) }
@@ -29,6 +33,12 @@ enum PracticeArea: String, Codable, CaseIterable, Sendable {
     case civil
     case corporate
     case contracts
+    /// Família e sucessões: inventário, pensão, divórcio. Aparece em conta de
+    /// pessoa física.
+    case family
+    /// Área que o app ainda não conhece — um backend mais novo pode mandar
+    /// uma. Melhor um rótulo genérico do que esconder o processo.
+    case other
 
     var labelKey: String {
         switch self {
@@ -37,6 +47,8 @@ enum PracticeArea: String, Codable, CaseIterable, Sendable {
         case .civil: "case.area.civil"
         case .corporate: "case.area.corporate"
         case .contracts: "case.area.contracts"
+        case .family: "case.area.family"
+        case .other: "case.area.other"
         }
     }
 
@@ -47,6 +59,8 @@ enum PracticeArea: String, Codable, CaseIterable, Sendable {
         case .civil: "building.columns"
         case .corporate: "chart.pie"
         case .contracts: "doc.text"
+        case .family: "figure.2.and.child.holdinghands"
+        case .other: "folder"
         }
     }
 }
@@ -160,8 +174,10 @@ struct LegalCase: Identifiable, Codable, Hashable, Sendable {
     /// Cases under seal never receive automated movements — no public source
     /// exposes them. The UI has to say so instead of looking idle.
     var isUnderSeal: Bool
-    var opposingParty: String
-    var claimValue: Decimal
+    /// `nil` quando a fonte não informa — a linha some da tela em vez de
+    /// mostrar um nome ou um valor que ninguém disse.
+    var opposingParty: String?
+    var claimValue: Decimal?
     var risk: RiskLevel
     var provision: Decimal?
     var responsibleLawyer: String
@@ -169,6 +185,15 @@ struct LegalCase: Identifiable, Codable, Hashable, Sendable {
     var closedAt: Date?
     var movements: [CaseMovement]
     var hearing: Hearing?
+    /// Classe processual como o tribunal registra ("Procedimento do Juizado
+    /// Especial Cível"). `nil` quando a fonte não informa.
+    var caseClass: String? = nil
+    /// Em que lado o cliente está, nas palavras da fonte ("ativo (autor)").
+    var clientRole: String? = nil
+    /// A última movimentação do tribunal, só data e origem. Existe para a fonte
+    /// que entrega o andamento sem explicação do escritório: o app diz que houve
+    /// movimento e quando, sem mostrar o texto cru (regra 2 do produto).
+    var lastCourtActivity: CourtActivity? = nil
 
     var isOpen: Bool { closedAt == nil }
 
@@ -178,8 +203,16 @@ struct LegalCase: Identifiable, Codable, Hashable, Sendable {
     }
 
     var lastVisibleUpdate: Date {
-        visibleMovements.first?.date ?? openedAt
+        visibleMovements.first?.date ?? lastCourtActivity?.date ?? openedAt
     }
+}
+
+/// Que o tribunal se mexeu, e quando — sem o que ele disse.
+struct CourtActivity: Codable, Hashable, Sendable {
+    var date: Date
+    /// De onde veio o dado ("DataJud", "Judit (13/11/2026)"). Texto da fonte,
+    /// mostrado como está.
+    var source: String?
 }
 
 // MARK: - Documents and contracts
@@ -188,6 +221,11 @@ enum DocumentKind: String, Codable, CaseIterable, Sendable {
     case contract
     case procedural
     case corporate
+
+    /// Rótulo para a conta: em pessoa física, "Societário" vira "Pessoais".
+    func labelKey(personal: Bool) -> String {
+        self == .corporate && personal ? "docs.kind.personal" : labelKey
+    }
 
     var labelKey: String {
         switch self {

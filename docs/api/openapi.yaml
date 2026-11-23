@@ -1,0 +1,514 @@
+openapi: 3.1.0
+info:
+  title: API do produto — app do cliente
+  version: 1.0.0
+  description: |
+    Contrato v1 entre o app iOS do cliente (white label) e a API do produto.
+    O app instalado já implementa este contrato (AdvClient/Core/Services/Remote/BackendAPI.swift).
+    Documentação em prosa: docs/api/README.md.
+
+    Convenções: JSON em camelCase; datas ISO 8601 com fuso; dinheiro como texto decimal com ponto;
+    UUID em texto. Nenhuma rota recebe id de empresa: o servidor isola pelo token.
+servers:
+  - url: https://{escritorio}.api.exemplo.com.br
+    description: Um host por escritório; o host identifica o escritório nas rotas de login.
+    variables:
+      escritorio:
+        default: jordanneves
+security:
+  - sessao: []
+tags:
+  - name: Acesso
+  - name: Dados
+  - name: Ações
+  - name: Eventos
+
+paths:
+  /v1/auth/code:
+    post:
+      tags: [Acesso]
+      summary: Pede o código de 6 dígitos por e-mail
+      operationId: requestCode
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: financeiro@costalog.com.br
+      responses:
+        '200':
+          description: Código enviado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CodeChallenge' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v1/auth/session:
+    post:
+      tags: [Acesso]
+      summary: Troca o código por uma sessão
+      operationId: createSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string, format: email }
+                code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  example: '492718'
+      responses:
+        '200':
+          description: Sessão aberta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      tags: [Acesso]
+      summary: Encerra a sessão do token enviado
+      operationId: deleteSession
+      responses:
+        '204':
+          description: Sessão encerrada (ou já estava vencida ou revogada)
+
+  /v1/snapshot:
+    get:
+      tags: [Dados]
+      summary: Tudo o que o cliente vê
+      operationId: getSnapshot
+      responses:
+        '200':
+          description: Snapshot da empresa da sessão
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Snapshot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '5XX': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{caseId}/hearing/confirmation:
+    post:
+      tags: [Ações]
+      summary: Confirma presença na próxima audiência do caso
+      description: Resolve também as pendências do tipo hearing do caso. Repetir mantém a primeira hora.
+      operationId: confirmHearing
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Snapshot atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Snapshot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /v1/pendencies/{pendencyId}/resolution:
+    post:
+      tags: [Ações]
+      summary: Marca uma pendência como resolvida pelo cliente
+      operationId: resolvePendency
+      parameters:
+        - name: pendencyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Snapshot atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Snapshot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /v1/documents:
+    post:
+      tags: [Ações]
+      summary: Envia um arquivo ao escritório (corpo cru, um arquivo por chamada)
+      operationId: uploadDocument
+      parameters:
+        - name: fileName
+          in: query
+          required: true
+          schema: { type: string, example: procuração.pdf }
+        - name: caseId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        description: Os bytes do arquivo. Content-Type pela extensão; até 25 MB.
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+          application/pdf:
+            schema: { type: string, format: binary }
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/png:
+            schema: { type: string, format: binary }
+          image/heic:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Snapshot atualizado, com o documento novo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Snapshot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /v1/events/whatsapp-handoff:
+    post:
+      tags: [Eventos]
+      summary: Registra que o cliente saiu para o WhatsApp
+      operationId: whatsAppHandoff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [caseId]
+              properties:
+                caseId:
+                  type: [string, 'null']
+                  format: uuid
+      responses:
+        '204':
+          description: Registrado. O app ignora qualquer erro desta rota.
+
+components:
+  securitySchemes:
+    sessao:
+      type: http
+      scheme: bearer
+      description: Token opaco de POST /v1/auth/session. 401 em qualquer rota encerra a sessão no app.
+
+  parameters:
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  headers:
+    RequestId:
+      description: Correlaciona com o log do servidor.
+      schema: { type: string }
+    RetryAfter:
+      description: Segundos (inteiro). Acima de 5 o app não repete sozinho.
+      schema: { type: integer, minimum: 0 }
+
+  responses:
+    Problem:
+      description: Erro com corpo padrão
+      headers:
+        X-Request-ID: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Sessão vencida ou revogada. O app apaga token e cache e volta ao login.
+      headers:
+        X-Request-ID: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    RateLimited:
+      description: Excesso de chamadas
+      headers:
+        X-Request-ID: { $ref: '#/components/headers/RequestId' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Date:
+      type: string
+      description: ISO 8601 com fuso (2026-11-14T17:30:00Z). Aceita fração de segundo e data sem hora.
+      example: '2026-11-14T17:30:00Z'
+    Money:
+      type: string
+      pattern: '^-?[0-9]+(\.[0-9]{1,2})?$'
+      description: Texto decimal com ponto, em BRL. Nunca número.
+      example: '84200.50'
+    Uuid:
+      type: string
+      format: uuid
+
+    Problem:
+      type: object
+      required: [code, requestId]
+      properties:
+        code:
+          type: string
+          description: Identificador estável. Único campo em que o app ramifica.
+          examples: [invalid_code, unknown_email, hearing_past]
+        detail:
+          type: string
+          description: Só para log e suporte. Nunca aparece ao cliente.
+        requestId: { type: string }
+        fields:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: array
+                items: { type: string }
+
+    CodeChallenge:
+      type: object
+      required: [expiresAt, resendAllowedAt]
+      properties:
+        expiresAt: { $ref: '#/components/schemas/Date' }
+        resendAllowedAt: { $ref: '#/components/schemas/Date' }
+
+    Session:
+      type: object
+      required: [token, expiresAt, company]
+      properties:
+        token: { type: string }
+        expiresAt: { $ref: '#/components/schemas/Date' }
+        company: { $ref: '#/components/schemas/Company' }
+
+    Company:
+      type: object
+      required: [id, legalName, tradeName, cnpj, userEmail]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        legalName: { type: string }
+        tradeName: { type: string }
+        cnpj:
+          type: string
+          description: CNPJ ou CPF, com ou sem máscara. 11 dígitos = pessoa física.
+        userEmail: { type: string, format: email }
+
+    Snapshot:
+      type: object
+      required: [syncedAt, cases, documents, pendencies, invoices]
+      properties:
+        syncedAt:
+          $ref: '#/components/schemas/Date'
+        capabilities:
+          $ref: '#/components/schemas/Capabilities'
+        cases:
+          type: array
+          items: { $ref: '#/components/schemas/Case' }
+        documents:
+          type: array
+          items: { $ref: '#/components/schemas/Document' }
+        pendencies:
+          type: array
+          items: { $ref: '#/components/schemas/Pendency' }
+        invoices:
+          type: array
+          items: { $ref: '#/components/schemas/Invoice' }
+
+    Capabilities:
+      type: object
+      description: Ausente = tudo ligado.
+      required: [documents, uploads]
+      properties:
+        documents: { type: boolean }
+        uploads: { type: boolean }
+
+    Case:
+      type: object
+      description: Campo obrigatório ausente ou errado (inclusive na audiência) descarta o caso inteiro no app.
+      required: [id, number, title, area, court, courtShort, underSeal, opposingParty, claimValue, responsibleLawyer, openedAt, movements]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        number: { type: string, example: 0012345-16.2025.5.17.0004 }
+        title: { type: string }
+        area:
+          type: string
+          enum: [labor, tax, civil, corporate, contracts, family]
+        court: { type: string }
+        courtShort: { type: string, example: TRT-17 }
+        underSeal: { type: boolean }
+        opposingParty:
+          type: string
+          description: Texto vazio quando não se sabe.
+        claimValue: { $ref: '#/components/schemas/Money' }
+        risk:
+          type: [string, 'null']
+          enum: [low, medium, high, null]
+        provision:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        responsibleLawyer:
+          type: string
+          description: Texto vazio quando não há.
+        openedAt: { $ref: '#/components/schemas/Date' }
+        closedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+        movements:
+          type: array
+          description: Só andamentos publicados.
+          items: { $ref: '#/components/schemas/Movement' }
+        hearing:
+          oneOf:
+            - $ref: '#/components/schemas/Hearing'
+            - type: 'null'
+
+    Movement:
+      type: object
+      description: O app esconde o que vier sem translation, approvedBy ou publishedAt.
+      required: [id, date, officialText, requiresClient, translation, approvedBy, publishedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        date: { $ref: '#/components/schemas/Date' }
+        officialText: { type: string }
+        headline: { type: [string, 'null'] }
+        translation: { type: string, minLength: 1 }
+        requiresClient: { type: boolean }
+        approvedBy: { type: string, minLength: 1 }
+        approvedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+        publishedAt: { $ref: '#/components/schemas/Date' }
+
+    Hearing:
+      type: object
+      required: [id, date, venue, address, whoMustAttend, checklist]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        date: { $ref: '#/components/schemas/Date' }
+        venue: { type: string }
+        address: { type: string }
+        whoMustAttend: { type: string }
+        checklist:
+          type: array
+          items: { $ref: '#/components/schemas/ChecklistItem' }
+        confirmedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+
+    ChecklistItem:
+      type: object
+      required: [id, text, checked]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        text: { type: string }
+        checked: { type: boolean }
+
+    Document:
+      type: object
+      required: [id, title, kind, autoRenews, version, attentionPoints, uploadedByClient, uploadedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        title: { type: string }
+        kind:
+          type: string
+          enum: [contract, procedural, corporate]
+        caseId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        counterparty: { type: [string, 'null'] }
+        effectiveFrom:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+        expiresAt:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+        noticeDeadline:
+          description: Prazo de aviso prévio. Obrigatório na prática quando autoRenews é true.
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+        autoRenews: { type: boolean }
+        monthlyValue:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        version: { type: integer, minimum: 1 }
+        attentionPoints:
+          type: array
+          items: { $ref: '#/components/schemas/AttentionPoint' }
+        uploadedByClient: { type: boolean }
+        uploadedAt: { $ref: '#/components/schemas/Date' }
+        archivedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+
+    AttentionPoint:
+      type: object
+      required: [id, clause, title, detail, warning]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        clause: { type: string }
+        title: { type: string }
+        detail: { type: string }
+        warning: { type: boolean }
+
+    Pendency:
+      type: object
+      required: [id, kind, title, detail, dueDate]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        kind:
+          type: string
+          enum: [hearing, contractDecision, documentRequest]
+        title: { type: string }
+        detail: { type: string }
+        dueDate: { $ref: '#/components/schemas/Date' }
+        caseId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        documentId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        resolvedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'
+
+    Invoice:
+      type: object
+      required: [id, reference, amount, dueDate]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        reference: { type: string, example: 11/2026 }
+        amount: { $ref: '#/components/schemas/Money' }
+        dueDate: { $ref: '#/components/schemas/Date' }
+        paidAt:
+          oneOf:
+            - $ref: '#/components/schemas/Date'
+            - type: 'null'

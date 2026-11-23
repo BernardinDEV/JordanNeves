@@ -18,8 +18,12 @@ enum WhatsAppLink {
 
         /// Body of the message, with the context already filled in. The client
         /// only has to type the question itself.
-        func message(companyName: String, locale: Locale = Format.uiLocale) -> String {
-            let hello = Format.string("wa.greeting \(companyName)", locale: locale)
+        /// `isPersonal`: a conta é de pessoa física — "Aqui é Fulana", e não
+        /// "Sou da Fulana", que só faz sentido para empresa.
+        func message(companyName: String, isPersonal: Bool = false, locale: Locale = Format.uiLocale) -> String {
+            let hello = isPersonal
+                ? Format.string("wa.greeting.personal \(companyName)", locale: locale)
+                : Format.string("wa.greeting \(companyName)", locale: locale)
             switch self {
             case .general:
                 return hello
@@ -67,7 +71,7 @@ enum WhatsAppLink {
     }
 
     /// Convenience over `url(phone:message:)` for a given context.
-    static func url(phone: String, context: Context, companyName: String) -> URL? {
-        url(phone: phone, message: context.message(companyName: companyName))
+    static func url(phone: String, context: Context, companyName: String, isPersonal: Bool = false) -> URL? {
+        url(phone: phone, message: context.message(companyName: companyName, isPersonal: isPersonal))
     }
 }

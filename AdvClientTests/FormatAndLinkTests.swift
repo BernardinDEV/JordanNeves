@@ -190,10 +190,15 @@ struct WhatsAppLinkTests {
     /// "one subject, one case" rule now that the in-app conversation is gone.
     @Test("Mensagem de andamento leva empresa, processo e data")
     func movementMessageCarriesContext() {
-        let date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 7, day: 12))!
+        // Fuso e idioma explícitos: a data é escrita no fuso do escritório, e
+        // `Format.uiLocale` é estado global que o app hospedeiro ajusta para o
+        // idioma do aparelho — num simulador em inglês este teste falhava.
+        var saoPaulo = Calendar(identifier: .gregorian)
+        saoPaulo.timeZone = TimeZone(identifier: "America/Sao_Paulo")!
+        let date = saoPaulo.date(from: DateComponents(year: 2026, month: 7, day: 12, hour: 9))!
         let message = WhatsAppLink.Context
             .movement(caseNumber: "0012345-16.2025.5.17.0004", caseTitle: "Reclamação trabalhista", movementDate: date)
-            .message(companyName: "Costa Log Transportes")
+            .message(companyName: "Costa Log Transportes", locale: Format.brazil)
 
         #expect(message.contains("Costa Log Transportes"))
         #expect(message.contains("0012345-16.2025.5.17.0004"))
@@ -220,6 +225,15 @@ struct WhatsAppLinkTests {
 
 @Suite("Autenticação sem senha")
 struct AuthTests {
+
+    @Test("E-mail de demonstração da marca entra, normalizado")
+    func acceptsBrandDemoEmails() {
+        let accepted = MockAuthService.acceptedEmails(brandEmails: ["  Pessoa.Teste@Exemplo.com "])
+        #expect(accepted.contains("pessoa.teste@exemplo.com"))
+        #expect(accepted.isSuperset(of: MockAuthService.invitedEmails))
+        #expect(MockAuthService.acceptedEmails(brandEmails: []) == MockAuthService.invitedEmails)
+    }
+
 
     private let service = MockAuthService()
 
@@ -325,7 +339,8 @@ struct RepositoryTests {
         let repository = MockClientRepository()
         let before = try await repository.snapshot(for: MockData.company.id)
 
-        let after = try await repository.upload(fileName: "cartao-ponto.pdf", caseID: MockData.laborCaseID)
+        let file = UploadFile(name: "cartao-ponto.pdf", data: Data("%PDF".utf8), contentType: "application/pdf")
+        let after = try await repository.upload(file, caseID: MockData.laborCaseID)
 
         #expect(after.documents.count == before.documents.count + 1)
         let first = try #require(after.documents.first)

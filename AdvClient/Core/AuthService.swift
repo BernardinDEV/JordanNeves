@@ -52,6 +52,9 @@ struct CodeChallenge: Equatable, Sendable {
 protocol AuthService: Sendable {
     func requestCode(email: String) async throws -> CodeChallenge
     func verify(code: String, challenge: CodeChallenge) async throws -> Company
+    /// Encerra a sessão do lado do servidor e esquece o token. Não lança: sair
+    /// do app tem que funcionar sem rede.
+    func signOut() async
 }
 
 /// Demo implementation. Accepts the invited e-mail and the fixed code below.
@@ -75,6 +78,17 @@ struct MockAuthService: AuthService {
         "juridico@costalog.com.br"
     ]
 
+    /// Os e-mails do núcleo mais os que o `Brand.json` da marca acrescenta em
+    /// `demo.invitedEmails`, normalizados como o login normaliza o que é
+    /// digitado.
+    static func acceptedEmails(
+        brandEmails: [String] = BrandConfiguration.current.demo?.invitedEmails ?? []
+    ) -> Set<String> {
+        invitedEmails.union(
+            brandEmails.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        )
+    }
+
     static func isPlausibleEmail(_ email: String) -> Bool {
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let at = trimmed.firstIndex(of: "@"), at != trimmed.startIndex else { return false }
@@ -86,7 +100,7 @@ struct MockAuthService: AuthService {
         try? await Task.sleep(for: .milliseconds(500))
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Self.isPlausibleEmail(normalized) else { throw AuthError.malformedEmail }
-        guard Self.invitedEmails.contains(normalized) else { throw AuthError.unknownEmail }
+        guard Self.acceptedEmails().contains(normalized) else { throw AuthError.unknownEmail }
         let now = Date.now
         return CodeChallenge(
             email: normalized,
@@ -96,11 +110,13 @@ struct MockAuthService: AuthService {
         )
     }
 
+    func signOut() async {}
+
     func verify(code: String, challenge: CodeChallenge) async throws -> Company {
         try? await Task.sleep(for: .milliseconds(500))
         guard !challenge.isExpired() else { throw AuthError.codeExpired }
         guard code.filter(\.isNumber) == Self.demoCode else { throw AuthError.invalidCode }
-        var company = MockData.company
+        var company = DemoDataset.current.company
         company.userEmail = challenge.email
         return company
     }

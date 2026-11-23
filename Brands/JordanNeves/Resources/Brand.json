@@ -22,7 +22,16 @@
     }
   },
   "api": {
-    "baseURL": "https://api.jordanneves.adv.br"
+    "baseURL": "https://api.jordanneves.adv.br",
+    "mode": "readonly"
+  },
+  "demo": {
+    "dataset": "personal",
+    "account": {
+      "name": "Jordan Neves",
+      "document": "123.456.789-09"
+    },
+    "invitedEmails": ["jhordan.neves@hotmail.com"]
   },
   "store": {
     "appStoreID": null

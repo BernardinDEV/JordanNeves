@@ -117,6 +117,28 @@ def checar_formatos() -> None:
 
 # ── 3. Info.plist de cada marca ─────────────────────────────────────────────
 
+def configuracoes_da_marca(marca: Path) -> list[str]:
+    """Os blocos XCBuildConfiguration (Debug, Release…) do target da marca.
+
+    O target é achado pelo Brand.xcconfig que serve de base: o grupo da marca
+    no projeto aponta para ele, e cada configuração do target o referencia.
+    """
+    projeto = PBXPROJ.read_text()
+    grupo = re.search(
+        r"\{\s*isa = PBXGroup;\s*children = \(([^)]*)\);[^}]*?path = " + re.escape(marca.name) + r";",
+        projeto,
+    )
+    if not grupo:
+        return []
+    ref = re.search(r"(\w+) /\* Brand\.xcconfig \*/", grupo.group(1))
+    if not ref:
+        return []
+    return re.findall(
+        r"isa = XCBuildConfiguration;\s*baseConfigurationReference = " + ref.group(1) + r"[^}]*\}",
+        projeto,
+    )
+
+
 def checar_plists() -> None:
     for marca in marcas():
         plist = marca / "Info.plist"
@@ -124,9 +146,41 @@ def checar_plists() -> None:
             falha(f"{marca.name}: sem Info.plist")
             continue
         texto = plist.read_text()
+        xcconfigs = (marca / "Brand.xcconfig").read_text() + (ROOT / "Config" / "App.xcconfig").read_text()
         for chave, porque in REQUIRED_PLIST_KEYS.items():
-            if f"<key>{chave}</key>" not in texto:
-                falha(f"{marca.name}/Info.plist: falta {chave}. {porque}")
+            # Vale no arquivo ou num xcconfig. Nos ajustes do target não: lá
+            # é exatamente o que checar_alvo_sem_ajustes recusa.
+            no_arquivo = f"<key>{chave}</key>" in texto
+            no_xcconfig = re.search(rf"^\s*INFOPLIST_KEY_{chave}\s*=", xcconfigs, re.M)
+            if not (no_arquivo or no_xcconfig):
+                falha(f"{marca.name}: falta {chave} no Info.plist. {porque}")
+
+
+def checar_alvo_sem_ajustes() -> None:
+    """O target de uma marca não pode ter ajuste de build próprio.
+
+    Tudo vem de Config/App.xcconfig e do Brand.xcconfig da marca. Um valor
+    gravado no target ganha dos dois em silêncio: o Brand.xcconfig continua
+    dizendo uma coisa, o app sai com outra, e nova-marca.py não leva o valor
+    para o escritório seguinte. É o que a aba General e a aba Info do Xcode
+    fazem quando alguém edita nome, bundle id, equipe ou orientação ali.
+    """
+    for marca in marcas():
+        configuracoes = configuracoes_da_marca(marca)
+        if not configuracoes:
+            falha(f"{marca.name}: não achei o target da marca no project.pbxproj")
+            continue
+        chaves: set[str] = set()
+        for bloco in configuracoes:
+            corpo = re.search(r"buildSettings = \{([^}]*)\}", bloco)
+            if corpo:
+                chaves.update(re.findall(r"^\s*([A-Za-z0-9_\[\]=*]+) =", corpo.group(1), re.M))
+        if chaves:
+            falha(
+                f"{marca.name}: o target tem ajustes próprios ({', '.join(sorted(chaves))}) que "
+                f"sobrepõem o Brand.xcconfig — mova os valores para Brands/{marca.name}/Brand.xcconfig "
+                "e apague-os do target (Build Settings → selecionar → Delete)"
+            )
 
 
 # ── 4. Assets que o núcleo exige de toda marca ──────────────────────────────
@@ -177,6 +231,25 @@ def checar_brand_json() -> None:
             aviso(f"{marca.name}/Brand.json: ainda tem campos DEFINIR")
         if "0000-0000" in cru or "example" in cru:
             aviso(f"{marca.name}/Brand.json: telefone ou domínio ainda é placeholder")
+
+        for email in d.get("demo", {}).get("invitedEmails", []):
+            if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+                falha(f"{marca.name}/Brand.json: demo.invitedEmails tem '{email}', que não é um e-mail")
+
+        modo = d.get("api", {}).get("mode", "demo")
+        if modo not in ("demo", "remote", "readonly"):
+            falha(f"{marca.name}/Brand.json: api.mode '{modo}' não existe — use demo, remote ou readonly")
+        elif modo == "demo":
+            aviso(f"{marca.name}/Brand.json: api.mode é demo — o app mostra dados de demonstração")
+        elif modo == "readonly":
+            aviso(f"{marca.name}/Brand.json: api.mode é readonly — fonte de teste, com a chave dentro "
+                  "do Info.plist do app; não envie esta marca para a loja assim")
+            segredos = ROOT / "Config" / "Secrets.xcconfig"
+            texto = segredos.read_text() if segredos.exists() else ""
+            if not re.search(r"^READONLY_API_KEY\s*=\s*\S", texto, re.M) or \
+               not re.search(r"^READONLY_API_BASE_URL\s*=\s*https:", texto, re.M):
+                falha(f"{marca.name}/Brand.json: api.mode é readonly, mas Config/Secrets.xcconfig não tem "
+                      "READONLY_API_BASE_URL e READONLY_API_KEY (modelo: Config/Secrets.example.xcconfig)")
 
         fonte = d.get("fontFamily")
         pasta = marca / "Resources" / "Fonts"
@@ -233,9 +306,62 @@ def checar_localizacao() -> None:
                 aviso(f"catálogo: '{chave}' em {lang} está como '{estado}'")
 
 
+# ── 8. Manifesto de privacidade ─────────────────────────────────────────────
+#
+# Sem manifesto, ou com uma API de motivo obrigatório sem declaração, o envio ao
+# App Store Connect volta com ITMS-91053 — depois do build, do upload e da
+# espera. Aqui o erro aparece antes.
+
+MANIFESTO = CORE / "Resources" / "PrivacyInfo.xcprivacy"
+
+# Categoria da Apple → padrões no código que a exigem.
+APIS_DE_MOTIVO = {
+    "NSPrivacyAccessedAPICategoryUserDefaults": [r"\bUserDefaults\b", r"@AppStorage"],
+    "NSPrivacyAccessedAPICategoryFileTimestamp": [
+        r"\.creationDate\b", r"\.modificationDate\b", r"contentModificationDate",
+        r"attributesOfItem", r"\b(?:l|f)?stat\(", r"getattrlist",
+    ],
+    "NSPrivacyAccessedAPICategorySystemBootTime": [r"systemUptime", r"mach_absolute_time"],
+    "NSPrivacyAccessedAPICategoryDiskSpace": [
+        r"volumeAvailableCapacity", r"attributesOfFileSystem", r"systemFreeSize", r"\bstatfs\(",
+    ],
+    "NSPrivacyAccessedAPICategoryActiveKeyboards": [r"activeInputModes"],
+}
+
+
+def checar_privacidade() -> None:
+    if not MANIFESTO.exists():
+        falha("AdvClient/Resources/PrivacyInfo.xcprivacy não existe — o envio à App Store "
+              "volta com ITMS-91053")
+        return
+    try:
+        manifesto = MANIFESTO.read_text()
+        xml.dom.minidom.parseString(manifesto)
+    except Exception as erro:  # noqa: BLE001 — qualquer falha de leitura é falha
+        falha(f"PrivacyInfo.xcprivacy não é um plist válido: {erro}")
+        return
+
+    # Duas cópias com o mesmo nome no pacote quebram o build ("Multiple
+    # commands produce"); a do núcleo já vale para toda marca.
+    for marca in marcas():
+        if any((marca / "Resources").rglob("PrivacyInfo.xcprivacy")):
+            falha(f"{marca.name}: tem PrivacyInfo.xcprivacy próprio — o do núcleo já entra "
+                  "no pacote; junte as declarações lá")
+
+    codigo = "\n".join(sem_comentarios(f.read_text()) for f in CORE.rglob("*.swift"))
+    for categoria, padroes in APIS_DE_MOTIVO.items():
+        usada = next((p for p in padroes if re.search(p, codigo)), None)
+        declarada = f"<string>{categoria}</string>" in manifesto
+        if usada and not declarada:
+            falha(f"o código usa {usada.strip(chr(92) + 'b')} e o manifesto não declara {categoria}")
+        elif declarada and not usada:
+            aviso(f"o manifesto declara {categoria} e o código não usa mais — revise")
+
+
 def main() -> None:
     for etapa in (checar_projeto, checar_formatos, checar_plists, checar_assets,
-                  checar_brand_json, checar_vazamento, checar_localizacao):
+                  checar_brand_json, checar_vazamento, checar_localizacao,
+                  checar_privacidade, checar_alvo_sem_ajustes):
         etapa()
 
     for a in avisos:

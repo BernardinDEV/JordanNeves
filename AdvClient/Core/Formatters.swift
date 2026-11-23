@@ -127,29 +127,51 @@ enum Format {
     /// para um cliente lendo em inglês. O que segue o idioma é a escrita do
     /// número: separador de milhar, decimal e posição do símbolo.
     static func money(_ value: Decimal, locale: Locale = Format.uiLocale) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = locale
-        formatter.currencyCode = "BRL"
-        return formatter.string(from: value as NSDecimalNumber) ?? "—"
+        // FormatStyle em vez de um `NumberFormatter` novo a cada chamada: o
+        // sistema guarda o formatador por configuração, e esta função roda uma
+        // vez por linha de lista.
+        value.formatted(.currency(code: "BRL").locale(locale))
     }
 
     /// `14/09/2026`
     static func date(_ date: Date, locale: Locale = Format.uiLocale) -> String {
-        date.formatted(.dateTime.day(.twoDigits).month(.twoDigits).year().locale(locale))
+        date.formatted(style(locale).day(.twoDigits).month(.twoDigits).year())
+    }
+
+    /// Estilo de data no fuso do escritório, o mesmo das contas de prazo em
+    /// `Rules.calendar`. Sem isto a hora seguia o fuso do **aparelho**: uma
+    /// audiência às 14h30 em Vitória aparecia às 13h30 para quem abre o app em
+    /// Manaus — e "em 3 dias" era contado num fuso e a data escrita em outro.
+    private static func style(_ locale: Locale) -> Date.FormatStyle {
+        Date.FormatStyle(locale: locale, calendar: Rules.calendar, timeZone: Rules.calendar.timeZone)
     }
 
     /// `Sexta, 27/07`
     static func weekdayDate(_ date: Date, locale: Locale = Format.uiLocale) -> String {
-        let weekday = date.formatted(.dateTime.weekday(.wide).locale(locale))
+        let weekday = date.formatted(style(locale).weekday(.wide))
         return "\(weekday.prefix(1).uppercased())\(weekday.dropFirst()), " +
-            date.formatted(.dateTime.day(.twoDigits).month(.twoDigits).locale(locale))
+            date.formatted(style(locale).day(.twoDigits).month(.twoDigits))
     }
 
     /// `27/07/2026 · 14h30`
     static func dateTime(_ date: Date, locale: Locale = Format.uiLocale) -> String {
-        let time = date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().locale(locale))
-        return "\(self.date(date, locale: locale)) · \(time.replacingOccurrences(of: ":", with: "h"))"
+        // Relógio de 24 horas em qualquer idioma. O estilo esconde o AM/PM, e
+        // num locale de 12 horas isso transformava uma audiência às 14h30 em
+        // "02h30" para quem usa o app em inglês.
+        var components = Locale.Components(locale: locale)
+        components.hourCycle = .zeroToTwentyThree
+        let clock = Locale(components: components)
+        let time = date.formatted(style(clock).hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
+        return "\(self.date(date, locale: locale)) · \(time.replacing(":", with: "h"))"
+    }
+
+    /// `Costa Log Transportes` → `CL`. Até duas iniciais, para os avatares.
+    static func initials(of name: String) -> String {
+        name.split(separator: " ")
+            .compactMap { $0.first.map(String.init) }
+            .prefix(2)
+            .joined()
+            .uppercased()
     }
 
     /// How far away a deadline is, in words: `em 54 dias`, `amanhã`, `hoje`,
@@ -180,6 +202,14 @@ enum Format {
         locale: Locale = Format.uiLocale
     ) -> String {
         "\(date(deadline, locale: locale)) · \(countdown(to: deadline, now: now, calendar: calendar, locale: locale))"
+    }
+
+    /// CPF ou CNPJ, pelo número de dígitos: `529.982.247-25` ou `14.902.336/0001-08`.
+    static func taxID(_ raw: String) -> String {
+        let d = raw.filter(\.isNumber)
+        guard d.count == 11 else { return cnpj(raw) }
+        let chars = Array(d)
+        return "\(String(chars[0..<3])).\(String(chars[3..<6])).\(String(chars[6..<9]))-\(String(chars[9..<11]))"
     }
 
     /// `14.902.336/0001-08`

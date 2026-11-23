@@ -14,6 +14,8 @@ struct HearingSheet: View {
     @State private var checklist: [ChecklistItem]
     @State private var isConfirming = false
     @State private var didConfirm = false
+    @State private var showsError = false
+    @State private var errorMessage = ""
 
     init(caseID: UUID, caseNumber: String, hearing: Hearing) {
         self.caseID = caseID
@@ -26,23 +28,33 @@ struct HearingSheet: View {
         NavigationStack {
             Group {
                 if didConfirm {
-                    ConfirmedView(hearing: hearing) { dismiss() }
+                    HearingConfirmedView(hearing: hearing, onClose: close)
                 } else {
                     form
                 }
             }
             .background(Theme.background)
-            .navigationTitle(Text(didConfirm ? "" : "hearing.title"))
+            .navigationTitle(didConfirm ? Text(verbatim: "") : Text("hearing.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !didConfirm {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("common.close") { dismiss() }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("common.close", action: close)
                     }
                 }
             }
         }
         .presentationDetents([.large])
+        // Fechar por arrasto no meio do envio deixaria o cliente sem saber se
+        // a presença foi ou não registrada.
+        .interactiveDismissDisabled(isConfirming)
+        .sensoryFeedback(.success, trigger: didConfirm)
+        .alert(Text("error.action.title"), isPresented: $showsError) {
+            Button("common.tryAgain", action: confirm)
+            Button("common.cancel", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
     }
 
     private var form: some View {
@@ -51,53 +63,34 @@ struct HearingSheet: View {
                 VStack(spacing: 0) {
                     KeyValueRow(label: "hearing.when", value: Format.dateTime(hearing.date), isMono: true)
                     KeyValueRow(label: "hearing.where", value: "\(hearing.venue)\n\(hearing.address)")
-                    KeyValueRow(label: "hearing.who", value: hearing.whoMustAttend)
+                    KeyValueRow(
+                        label: appState.isPersonalAccount ? "hearing.who.personal" : "hearing.who",
+                        value: hearing.whoMustAttend
+                    )
                 }
                 .padding(.bottom, 18)
 
                 Text("hearing.bring")
-                    .font(Theme.font(10.5, weight: .semibold))
-                    .kerning(1.3)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Theme.muted)
+                    .eyebrow()
                     .padding(.bottom, 10)
+                    .accessibilityAddTraits(.isHeader)
 
-                VStack(spacing: 9) {
+                VStack(spacing: 0) {
                     ForEach($checklist) { $item in
-                        Button {
-                            item.isChecked.toggle()
-                        } label: {
-                            HStack(alignment: .top, spacing: 10) {
-                                Image(systemName: item.isChecked ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 19))
-                                    .foregroundStyle(item.isChecked ? Theme.primary : Theme.muted)
-                                Text(item.text)
-                                    .font(Theme.font(14))
-                                    .foregroundStyle(Theme.body)
-                                    .multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
-                            }
-                            .frame(minHeight: 30)
-                            .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
+                        Toggle(item.text, isOn: $item.isChecked)
+                            .toggleStyle(ChecklistToggleStyle())
                     }
                 }
-                .padding(14)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 13))
+                .background(Theme.fill, in: .rect(cornerRadius: 13))
 
                 VStack(spacing: 8) {
-                    Button {
-                        confirm()
-                    } label: {
-                        if isConfirming {
-                            ProgressView().tint(Theme.onBrand)
-                        } else {
-                            Text("hearing.action.confirm")
-                        }
+                    Button(action: confirm) {
+                        LoadingLabel("hearing.action.confirm", isLoading: isConfirming)
                     }
-                    .buttonStyle(PrimaryButtonStyle(isEnabled: !isConfirming))
+                    .buttonStyle(PrimaryButtonStyle())
                     .disabled(isConfirming)
 
                     WhatsAppButton(
@@ -114,105 +107,32 @@ struct HearingSheet: View {
         }
     }
 
+    private func close() {
+        dismiss()
+    }
+
     private func confirm() {
+        guard !isConfirming else { return }
         isConfirming = true
         Task {
-            await appState.confirmHearing(caseID: caseID)
-            isConfirming = false
-            withAnimation { didConfirm = true }
-        }
-    }
-}
-
-// MARK: - Confirmation
-
-/// Says what happens next, never just "done" — a bare success screen is what
-/// generates the follow-up e-mail to the firm.
-private struct ConfirmedView: View {
-    @Environment(\.openURL) private var openURL
-    let hearing: Hearing
-    let onClose: () -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 20)
-
-            Image(systemName: "checkmark")
-                .font(.system(size: 32, weight: .semibold))
-                .foregroundStyle(Theme.onTrack)
-                .frame(width: 74, height: 74)
-                .background(Theme.onTrack.opacity(0.15), in: Circle())
-
-            Text("hearing.confirmed.title")
-                .font(Theme.font(24, weight: .bold))
-                .foregroundStyle(Theme.primary)
-                .padding(.top, 22)
-
-            Text("hearing.confirmed.body")
-                .font(Theme.font(15))
-                .foregroundStyle(Theme.muted)
-                .multilineTextAlignment(.center)
-                .padding(.top, 10)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Offered at the moment it is useful, not buried in settings.
-            Button {
-                addToCalendar()
-            } label: {
-                AppListRow(
-                    title: Format.string("hearing.addToCalendar"),
-                    subtitle: Format.dateTime(hearing.date),
-                    systemImage: "calendar",
-                    isMonoSubtitle: true
-                )
+            defer { isConfirming = false }
+            do {
+                try await appState.confirmHearing(caseID: caseID)
+                withAnimation { didConfirm = true }
+            } catch {
+                // Só diz "confirmada" quando o escritório de fato recebeu.
+                errorMessage = appState.userMessage(for: error)
+                showsError = true
             }
-            .buttonStyle(.plain)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
-            .shadow(color: Theme.primary.opacity(0.06), radius: 8, y: 3)
-            .padding(.top, 24)
-
-            Spacer()
-
-            Button("hearing.backToCase") { onClose() }
-                .buttonStyle(SecondaryButtonStyle())
-                .padding(.bottom, 20)
         }
-        .sideMargin()
-    }
-
-    /// Hands the event to the system calendar as a data: URL, so the app needs no
-    /// calendar permission for a one-off event the user explicitly asked for.
-    private func addToCalendar() {
-        let start = hearing.date
-        let end = start.addingTimeInterval(2 * 3600)
-        let stamp: (Date) -> String = { date in
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyyMMdd'T'HHmmss"
-            formatter.timeZone = Rules.calendar.timeZone
-            return formatter.string(from: date)
-        }
-        let ics = """
-        BEGIN:VCALENDAR
-        VERSION:2.0
-        BEGIN:VEVENT
-        DTSTART:\(stamp(start))
-        DTEND:\(stamp(end))
-        SUMMARY:\(Format.string("hearing.calendar.title")) — \(BrandConfiguration.current.legalName)
-        LOCATION:\(hearing.venue) — \(hearing.address)
-        END:VEVENT
-        END:VCALENDAR
-        """
-        guard let encoded = ics.data(using: .utf8)?.base64EncodedString(),
-              let url = URL(string: "data:text/calendar;base64,\(encoded)") else { return }
-        openURL(url)
     }
 }
 
 #Preview {
     HearingSheet(
-        caseID: MockData.laborCaseID,
+        caseID: DemoDataset.current.hearingCaseID,
         caseNumber: "0012345-16.2025.5.17.0004",
-        hearing: MockData.cases[0].hearing!
+        hearing: DemoDataset.current.cases.first { $0.id == DemoDataset.current.hearingCaseID }!.hearing!
     )
     .environment(AppState.signedInPreview())
 }

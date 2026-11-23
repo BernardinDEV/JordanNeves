@@ -5,3 +5,6 @@ DerivedData/
 build/
 __pycache__/
 *.pyc
+
+# Segredos locais (chaves de API de teste). Modelo: Config/Secrets.example.xcconfig
+Config/Secrets.xcconfig

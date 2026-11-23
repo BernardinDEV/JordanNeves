@@ -20,22 +20,12 @@ struct ContactView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    Text("contact.title")
-                        .font(Theme.font(34, weight: .bold))
-                        .foregroundStyle(Theme.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .sideMargin()
-                        .padding(.top, 14)
-                        .padding(.bottom, 16)
-
-                    firmCard
+                VStack(spacing: 0) {
+                    FirmCard(legalName: brand.legalName, tagline: brand.tagline.resolved())
 
                     SectionHeader("contact.section.talk")
                     RowCard {
-                        Button {
-                            if let url = appState.whatsAppURL(.general) { openURL(url) }
-                        } label: {
+                        Button(action: openWhatsApp) {
                             AppListRow(
                                 title: Format.string("profile.whatsapp"),
                                 subtitle: contact.businessHours.resolved(),
@@ -43,22 +33,21 @@ struct ContactView: View {
                                 iconTone: .onTrack
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(RowPressStyle())
 
-                        RowDivider()
-                        link(
-                            titleKey: "contact.phone",
+                        ContactLinkRow(
+                            title: Format.string("contact.phone"),
                             value: contact.phone,
                             systemImage: "phone",
-                            url: URL(string: "tel:\(Self.dialable(contact.phone))")
+                            url: URL(string: "tel:\(Self.dialable(contact.phone))"),
+                            showsDivider: true
                         )
-
-                        RowDivider()
-                        link(
-                            titleKey: "contact.email",
+                        ContactLinkRow(
+                            title: Format.string("contact.email"),
                             value: contact.email,
                             systemImage: "envelope",
-                            url: URL(string: "mailto:\(contact.email)")
+                            url: URL(string: "mailto:\(contact.email)"),
+                            showsDivider: true
                         )
                     }
                     .sideMargin()
@@ -84,28 +73,29 @@ struct ContactView: View {
                     if hasOnlinePresence {
                         SectionHeader("contact.section.online")
                         RowCard {
-                            link(
-                                titleKey: "contact.website",
+                            ContactLinkRow(
+                                title: Format.string("contact.website"),
                                 value: Self.hostname(contact.website),
                                 systemImage: "globe",
-                                url: URL(string: contact.website)
+                                url: URL(string: contact.website),
+                                showsDivider: false
                             )
                             if let instagram = contact.instagram {
-                                RowDivider()
-                                link(
-                                    titleKey: "contact.instagram",
+                                ContactLinkRow(
+                                    title: Format.string("contact.instagram"),
                                     value: Self.handle(instagram),
                                     systemImage: "camera",
-                                    url: URL(string: instagram)
+                                    url: URL(string: instagram),
+                                    showsDivider: true
                                 )
                             }
                             if let linkedin = contact.linkedin {
-                                RowDivider()
-                                link(
-                                    titleKey: "contact.linkedin",
+                                ContactLinkRow(
+                                    title: Format.string("contact.linkedin"),
                                     value: Self.handle(linkedin),
                                     systemImage: "briefcase",
-                                    url: URL(string: linkedin)
+                                    url: URL(string: linkedin),
+                                    showsDivider: true
                                 )
                             }
                         }
@@ -122,54 +112,13 @@ struct ContactView: View {
                         .padding(.bottom, 28)
                 }
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationBarHidden(true)
+            .background(Theme.background)
+            .navigationTitle(Text("contact.title"))
         }
     }
 
-    // MARK: - Pieces
-
-    private var firmCard: some View {
-        HStack(spacing: 14) {
-            BrandMark()
-                .frame(width: 46, height: 46)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: brand.legalName)
-                    .font(Theme.font(16.5, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(verbatim: brand.tagline.resolved())
-                    .font(Theme.font(13))
-                    .foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-        .card()
-        .sideMargin()
-    }
-
-    /// Uma linha que abre algo fora do app. Some quando a URL não se forma —
-    /// linha morta em tela de contato é pior do que ausência.
-    @ViewBuilder
-    private func link(
-        titleKey: String.LocalizationValue,
-        value: String,
-        systemImage: String,
-        url: URL?
-    ) -> some View {
-        if let url {
-            Button { openURL(url) } label: {
-                AppListRow(
-                    title: Format.string(titleKey),
-                    subtitle: value,
-                    systemImage: systemImage,
-                    isMonoSubtitle: true
-                )
-            }
-            .buttonStyle(.plain)
-        }
+    private func openWhatsApp() {
+        if let url = appState.whatsAppURL(.general) { openURL(url) }
     }
 
     private var hasOnlinePresence: Bool {

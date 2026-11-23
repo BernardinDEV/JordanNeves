@@ -1,35 +1,12 @@
 import SwiftUI
 
-enum AppLanguage: String, CaseIterable, Identifiable {
-    case portuguese = "pt-BR"
-    case english = "en"
-
-    var id: String { rawValue }
-
-    var labelKey: LocalizedStringKey {
-        switch self {
-        case .portuguese: "language.portuguese"
-        case .english: "language.english"
-        }
-    }
-
-    var locale: Locale { Locale(identifier: rawValue) }
-}
-
-/// Where the launch sequence currently is.
-enum LaunchPhase: Equatable {
-    case splash
-    case onboarding
-    case signIn
-    case ready
-}
-
 @MainActor
 @Observable
 final class AppState {
-    // Dependency injection point — swap the mocks for API-backed services later.
-    let auth: AuthService = MockAuthService()
-    let repository: ClientDataRepository = MockClientRepository()
+    /// De onde vêm os dados: demonstração ou a API do produto, conforme o
+    /// `Brand.json`. O `AppState` não sabe qual — nem qual provedor jurídico
+    /// está atrás da API.
+    private let services: ServiceContainer
 
     // MARK: Session
 
@@ -58,10 +35,20 @@ final class AppState {
     // MARK: Client data
 
     private(set) var snapshot: ClientSnapshot = .empty
+    /// Tudo o que as telas derivam do snapshot, calculado uma vez por snapshot.
+    /// Só `apply(_:)` e `rebuildIndex()` escrevem aqui.
+    private(set) var index: PortfolioIndex = .empty
     private(set) var isLoading = false
+    /// A última atualização falhou. As telas avisam e continuam mostrando o que
+    /// já tinham — com a data de quando é.
     private(set) var loadFailed = false
     /// Notifications the client has opened, so the badge can settle.
     private(set) var readMovementIDs: Set<UUID> = []
+
+    /// Atualização em andamento. Quem pedir outra enquanto esta corre espera
+    /// por ela, em vez de disparar uma segunda busca — o login e a primeira
+    /// tela pediam as duas ao mesmo tempo.
+    private var refreshTask: Task<Void, Never>?
 
     var phase: LaunchPhase {
         if !didFinishSplash { return .splash }
@@ -70,6 +57,16 @@ final class AppState {
         return .ready
     }
 
+    /// Ainda não chegou nenhum dado: as telas mostram carregamento, não o
+    /// estado vazio — "nenhum caso" antes da resposta é uma mentira breve.
+    var isAwaitingFirstLoad: Bool {
+        !hasLoadedSnapshot && !loadFailed
+    }
+
+    /// Algum snapshot já chegou nesta sessão. Não dá para deduzir da data de
+    /// sincronização: a fonte somente leitura responde sem ela.
+    private(set) var hasLoadedSnapshot = false
+
     private enum Keys {
         static let isSignedIn = "session.isSignedIn"
         static let company = "session.company"
@@ -77,7 +74,14 @@ final class AppState {
         static let didAskBiometrics = "session.didAskBiometrics"
     }
 
-    init() {
+    init(services: ServiceContainer? = nil) {
+        #if DEBUG
+        // Rotas de captura usam sempre a demonstração, qualquer que seja a marca.
+        self.services = services ?? (DemoRoute.current != nil ? .demo() : .forCurrentBrand())
+        #else
+        self.services = services ?? .forCurrentBrand()
+        #endif
+
         let saved = UserDefaults.standard.string(forKey: "app.language")
         if let saved, let lang = AppLanguage(rawValue: saved) {
             language = lang
@@ -103,17 +107,12 @@ final class AppState {
         // Screenshot runs jump straight to a screen, so the data has to be there
         // before the first frame — no async load to wait on.
         if DemoRoute.current != nil {
-            company = MockData.company
+            let dataset = DemoDataset.current
+            company = dataset.company
             didFinishSplash = true
             hasSeenOnboarding = true
             didAskBiometrics = true
-            snapshot = ClientSnapshot(
-                cases: MockData.cases,
-                documents: MockData.documents,
-                pendencies: MockData.pendencies,
-                invoices: MockData.invoices,
-                lastSyncedAt: Rules.calendar.date(bySettingHour: 8, minute: 30, second: 0, of: .now) ?? .now
-            )
+            apply(dataset.snapshot)
         }
         #endif
     }
@@ -130,21 +129,34 @@ final class AppState {
     // MARK: - Authentication
 
     func requestCode(email: String) async throws -> CodeChallenge {
-        try await auth.requestCode(email: email)
+        try await services.auth.requestCode(email: email)
     }
 
     func verify(code: String, challenge: CodeChallenge) async throws {
-        let company = try await auth.verify(code: code, challenge: challenge)
+        let company = try await services.auth.verify(code: code, challenge: challenge)
+        await services.session.didSignIn(companyID: company.id.uuidString)
         self.company = company
         persistSession(company)
         await refresh()
     }
 
     func signOut() {
+        // Servidor, token e cache em segundo plano: a tela de login aparece na
+        // hora, com ou sem rede.
+        let services = services
+        Task {
+            await services.auth.signOut()
+            await services.session.didSignOut()
+        }
+        refreshTask?.cancel()
+        refreshTask = nil
         company = nil
         biometricEnabled = false
         didAskBiometrics = false
-        snapshot = .empty
+        isLoading = false
+        loadFailed = false
+        apply(.empty)
+        hasLoadedSnapshot = false
         readMovementIDs = []
         Self.clearKeychainSession()
     }
@@ -153,6 +165,13 @@ final class AppState {
 
     var canUseBiometrics: Bool { BiometricAuthenticator.isAvailable }
     var biometryName: String { BiometricAuthenticator.biometryName }
+
+    /// Face ID ligado ou não, como propriedade gravável — é o que o `Toggle` do
+    /// perfil liga com `$appState.biometricLockEnabled`. Gravar persiste.
+    var biometricLockEnabled: Bool {
+        get { biometricEnabled }
+        set { setBiometricEnabled(newValue) }
+    }
 
     func setBiometricEnabled(_ enabled: Bool) {
         biometricEnabled = enabled
@@ -180,124 +199,137 @@ final class AppState {
     // MARK: - Data
 
     func refresh() async {
-        guard let company else { return }
-        isLoading = true
-        loadFailed = false
-        do {
-            snapshot = try await repository.snapshot(for: company.id)
-        } catch {
-            loadFailed = true
+        if let refreshTask {
+            await refreshTask.value
+            return
         }
-        isLoading = false
+        guard let company else { return }
+
+        let task = Task { [services] in
+            isLoading = true
+            defer {
+                isLoading = false
+                refreshTask = nil
+            }
+            do {
+                // Idempotente; cobre a sessão restaurada no lançamento, que
+                // nunca passou por `verify`.
+                await services.session.didSignIn(companyID: company.id.uuidString)
+                let fetched = try await services.repository.snapshot(for: company.id)
+                // Saiu da conta enquanto a resposta vinha: ela não é mais de ninguém.
+                guard !Task.isCancelled, self.company?.id == company.id else { return }
+                apply(fetched)
+                loadFailed = false
+            } catch {
+                guard !Task.isCancelled else { return }
+                if (error as? APIError)?.endsSession == true {
+                    // Token vencido ou revogado: de volta ao login, sem
+                    // mostrar dado que o servidor já não autoriza.
+                    signOut()
+                    return
+                }
+                loadFailed = true
+            }
+        }
+        refreshTask = task
+        await task.value
     }
 
-    func confirmHearing(caseID: UUID) async {
-        guard let updated = try? await repository.confirmHearing(caseID: caseID) else { return }
-        snapshot = updated
+    /// Refaz os derivados com o relógio de agora. Prazos e "há quantos dias"
+    /// mudam à meia-noite mesmo sem dado novo — chamado quando o app volta ao
+    /// primeiro plano.
+    func rebuildIndex() {
+        index = PortfolioIndex(snapshot: snapshot)
     }
 
-    func resolvePendency(id: UUID) async {
-        guard let updated = try? await repository.resolvePendency(id: id) else { return }
-        snapshot = updated
+    /// Volta ao primeiro plano: refaz as contagens de prazo e pede nova
+    /// checagem do ambiente antes da próxima chamada de rede.
+    func didReturnToForeground() {
+        rebuildIndex()
+        let services = services
+        Task { await services.session.willEnterForeground() }
     }
 
-    func upload(fileName: String, caseID: UUID?) async {
-        guard let updated = try? await repository.upload(fileName: fileName, caseID: caseID) else { return }
-        snapshot = updated
+    // As três ações abaixo **lançam**. Engolir a falha com `try?` fazia a tela
+    // dizer "presença confirmada" e "arquivo enviado" quando nada tinha chegado
+    // ao escritório.
+
+    func confirmHearing(caseID: UUID) async throws {
+        apply(try await services.repository.confirmHearing(caseID: caseID))
+    }
+
+    func resolvePendency(id: UUID) async throws {
+        apply(try await services.repository.resolvePendency(id: id))
+    }
+
+    func upload(_ file: UploadFile, caseID: UUID?) async throws {
+        apply(try await services.repository.upload(file, caseID: caseID))
     }
 
     func markRead(_ movementID: UUID) {
         readMovementIDs.insert(movementID)
     }
 
+    /// A frase que o cliente lê quando uma ação falha — no idioma do app, sem
+    /// código de status e sem o texto cru do servidor.
+    func userMessage(for error: Error) -> String {
+        if let authError = error as? AuthError, let text = authError.errorDescription { return text }
+        return (error as? APIError)?.userMessage ?? Format.string("network.error.generic")
+    }
+
+    /// O que o escritório oferece no app — aba de documentos, envio de arquivo.
+    var capabilities: ProviderCapabilities { snapshot.capabilities }
+
+    /// Conta de pessoa física (CPF). Troca os textos que falam em "empresa".
+    var isPersonalAccount: Bool { company?.isPersonal ?? false }
+
+    private func apply(_ snapshot: ClientSnapshot) {
+        self.snapshot = snapshot
+        index = PortfolioIndex(snapshot: snapshot)
+        hasLoadedSnapshot = true
+    }
+
     // MARK: - Derived views over the snapshot
     //
-    // Everything below goes through `Rules`, so the dashboard, the notification
-    // list and the documents screen can never disagree about what is urgent.
+    // Everything below is read from `index`, which goes through `Rules` — so the
+    // dashboard, the notification list and the documents screen can never
+    // disagree about what is urgent, and none of them recomputes it per frame.
 
     var cases: [LegalCase] { snapshot.cases }
-    var openCases: [LegalCase] { snapshot.cases.filter(\.isOpen) }
-    var closedCases: [LegalCase] { snapshot.cases.filter { !$0.isOpen } }
-    var documents: [ClientDocument] { snapshot.documents.filter { !$0.isArchived } }
+    var openCases: [LegalCase] { index.openCases }
+    var closedCases: [LegalCase] { index.closedCases }
+    var documents: [ClientDocument] { index.documents }
     var invoices: [Invoice] { snapshot.invoices }
+    var nextInvoice: Invoice? { index.nextInvoice }
+    var position: PortfolioPosition { index.position }
+    var openPendencies: [Pendency] { index.openPendencies }
+    var casesRequiringClient: [LegalCase] { index.casesRequiringClient }
+    var documentsNeedingAttention: [ClientDocument] { index.documentsNeedingAttention }
+    var contracts: [ClientDocument] { index.contracts }
+    var informationalMovements: [MovementReference] { index.informationalMovements }
 
-    var nextInvoice: Invoice? {
-        snapshot.invoices.filter { !$0.isPaid }.min { $0.dueDate < $1.dueDate }
-    }
-
-    var position: PortfolioPosition {
-        Rules.position(cases: snapshot.cases, pendencies: snapshot.pendencies)
-    }
-
-    var openPendencies: [Pendency] {
-        Rules.openPendencies(snapshot.pendencies)
-    }
-
-    var casesRequiringClient: [LegalCase] {
-        Rules.casesRequiringClient(snapshot.cases, pendencies: snapshot.pendencies)
-    }
-
-    var documentsNeedingAttention: [ClientDocument] {
-        Rules.documentsNeedingAttention(snapshot.documents)
-    }
-
-    var contracts: [ClientDocument] {
-        documents.filter { $0.kind == .contract }
-    }
-
-    func state(of legalCase: LegalCase) -> CaseState {
-        Rules.state(of: legalCase, pendencies: snapshot.pendencies)
-    }
-
-    func nextDeadline(for legalCase: LegalCase) -> Date? {
-        Rules.nextDeadline(for: legalCase, pendencies: snapshot.pendencies)
-    }
-
-    func contractAlert(for document: ClientDocument) -> ContractAlert? {
-        Rules.contractAlert(for: document)
-    }
-
-    func legalCase(id: UUID?) -> LegalCase? {
-        guard let id else { return nil }
-        return snapshot.cases.first { $0.id == id }
-    }
-
-    func document(id: UUID?) -> ClientDocument? {
-        guard let id else { return nil }
-        return snapshot.documents.first { $0.id == id }
-    }
+    func state(of legalCase: LegalCase) -> CaseState { index.state(of: legalCase) }
+    func nextDeadline(for legalCase: LegalCase) -> Date? { index.nextDeadline(for: legalCase) }
+    func contractAlert(for document: ClientDocument) -> ContractAlert? { index.contractAlert(for: document) }
+    func legalCase(id: UUID?) -> LegalCase? { index.legalCase(id: id) }
+    func document(id: UUID?) -> ClientDocument? { index.document(id: id) }
 
     /// Movements the client hasn't opened yet — everything that would have been
     /// a push, minus what they already read.
-    var unreadCount: Int {
-        let pending = openPendencies.count
-        let unreadInfo = snapshot.cases
-            .flatMap(\.visibleMovements)
-            .filter { !$0.requiresClient && !readMovementIDs.contains($0.id) && Rules.days(from: $0.date, to: .now) <= 14 }
-            .count
-        return pending + unreadInfo
-    }
-
-    /// Movements worth listing under "Para saber" — published, no action needed.
-    var informationalMovements: [(movement: CaseMovement, legalCase: LegalCase)] {
-        snapshot.cases
-            .flatMap { legalCase in legalCase.visibleMovements.map { ($0, legalCase) } }
-            .filter { !$0.0.requiresClient }
-            .sorted { $0.0.date > $1.0.date }
-            .prefix(8)
-            .map { (movement: $0.0, legalCase: $0.1) }
-    }
+    var unreadCount: Int { index.unreadCount(excluding: readMovementIDs) }
 
     // MARK: - WhatsApp
 
     var firmPhone: String { BrandConfiguration.current.contact.whatsapp }
 
     func whatsAppURL(_ context: WhatsAppLink.Context, caseID: UUID? = nil) -> URL? {
+        let repository = services.repository
         Task { await repository.recordWhatsAppHandoff(caseID: caseID) }
         return WhatsAppLink.url(
             phone: firmPhone,
             context: context,
-            companyName: company?.tradeName ?? BrandConfiguration.current.displayName
+            companyName: company?.tradeName ?? BrandConfiguration.current.displayName,
+            isPersonal: isPersonalAccount
         )
     }
 
@@ -326,26 +358,30 @@ final class AppState {
         KeychainHelper.delete(forKey: Keys.company)
         KeychainHelper.delete(forKey: Keys.biometricEnabled)
         KeychainHelper.delete(forKey: Keys.didAskBiometrics)
+        SessionTokenStore.clearPersisted()
     }
 }
 
-#if DEBUG
+// Sem `#if DEBUG` de propósito: o `#Preview` é compilado também em Release, e
+// o archive quebrava com "AppState has no member 'signedInPreview'" em cada
+// tela com prévia. Ninguém chama estas funções fora das prévias.
 extension AppState {
     /// Preview convenience — a signed-in state with demo data, no Keychain writes.
     static func signedInPreview() -> AppState {
-        let state = AppState()
-        state.company = MockData.company
+        let state = AppState(services: .demo())
+        let dataset = DemoDataset.current
+        state.company = dataset.company
         state.didFinishSplash = true
         state.hasSeenOnboarding = true
         state.didAskBiometrics = true
-        state.snapshot = ClientSnapshot(
-            cases: MockData.cases,
-            documents: MockData.documents,
-            pendencies: MockData.pendencies,
-            invoices: MockData.invoices,
-            lastSyncedAt: .now
-        )
+        state.apply(dataset.snapshot)
+        return state
+    }
+
+    /// Preview do aviso de falha: dados de demonstração, última atualização falhou.
+    static func failedRefreshPreview() -> AppState {
+        let state = signedInPreview()
+        state.loadFailed = true
         return state
     }
 }
-#endif

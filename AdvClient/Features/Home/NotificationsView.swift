@@ -7,9 +7,12 @@ struct NotificationsView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
+        let pendencies = appState.openPendencies
+        let informational = appState.informationalMovements
+
         ScrollView {
-            LazyVStack(spacing: 0) {
-                if appState.openPendencies.isEmpty && appState.informationalMovements.isEmpty {
+            VStack(spacing: 0) {
+                if pendencies.isEmpty && informational.isEmpty {
                     EmptyStateView(
                         systemImage: "bell.slash",
                         title: "notifications.empty.title",
@@ -20,44 +23,30 @@ struct NotificationsView: View {
                     .padding(.top, 24)
                 }
 
-                if !appState.openPendencies.isEmpty {
+                if !pendencies.isEmpty {
                     SectionHeader("home.section.requiresYou")
                     RowCard {
-                        ForEach(Array(appState.openPendencies.enumerated()), id: \.element.id) { index, pendency in
-                            NavigationLink {
-                                pendencyDestination(pendency)
-                            } label: {
-                                AppListRow(
-                                    title: pendency.title,
-                                    subtitle: Format.deadline(pendency.dueDate),
-                                    systemImage: pendency.kind.systemImage,
-                                    iconTone: .critical,
-                                    isMonoSubtitle: true
-                                )
+                        ForEach(pendencies) { pendency in
+                            VStack(spacing: 0) {
+                                if pendency.id != pendencies.first?.id { RowDivider() }
+                                PendencyRow(pendency: pendency)
                             }
-                            .buttonStyle(.plain)
-                            if index < appState.openPendencies.count - 1 { RowDivider() }
                         }
                     }
                     .sideMargin()
                 }
 
-                if !appState.informationalMovements.isEmpty {
+                if !informational.isEmpty {
                     SectionHeader("notifications.section.forInfo")
                     RowCard {
-                        ForEach(Array(appState.informationalMovements.enumerated()), id: \.element.movement.id) { index, item in
-                            NavigationLink {
-                                MovementDetailView(caseID: item.legalCase.id, movementID: item.movement.id)
-                            } label: {
-                                AppListRow(
-                                    title: item.movement.displayHeadline,
-                                    subtitle: "\(Format.string(.init(item.legalCase.area.labelKey))) · \(Format.date(item.movement.date)) · \(Format.string("notifications.nothingToDo"))",
-                                    systemImage: "text.document",
-                                    iconTone: appState.readMovementIDs.contains(item.movement.id) ? .neutral : .brass
+                        ForEach(informational) { item in
+                            VStack(spacing: 0) {
+                                if item.id != informational.first?.id { RowDivider() }
+                                InformationalMovementRow(
+                                    item: item,
+                                    isRead: appState.readMovementIDs.contains(item.id)
                                 )
                             }
-                            .buttonStyle(.plain)
-                            if index < appState.informationalMovements.count - 1 { RowDivider() }
                         }
                     }
                     .sideMargin()
@@ -76,26 +65,12 @@ struct NotificationsView: View {
         .navigationTitle(Text("notifications.title"))
         .navigationBarTitleDisplayMode(.inline)
     }
-
-    @ViewBuilder
-    private func pendencyDestination(_ pendency: Pendency) -> some View {
-        switch pendency.kind {
-        case .hearing:
-            if let caseID = pendency.caseID {
-                CaseDetailView(caseID: caseID)
-            }
-        case .contractDecision, .documentRequest:
-            if let documentID = pendency.documentID {
-                ContractDetailView(documentID: documentID)
-            } else if let caseID = pendency.caseID {
-                CaseDetailView(caseID: caseID)
-            }
-        }
-    }
 }
 
 #Preview {
     NavigationStack {
-        NotificationsView().environment(AppState.signedInPreview())
+        NotificationsView()
+            .appRouteDestinations()
+            .environment(AppState.signedInPreview())
     }
 }
